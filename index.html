@@ -1236,10 +1236,11 @@ const MEMBER_MASTER = {
 
 
 // ===== 管理者リスト（ハードコード）=====
+// 管理者は全データ閲覧可・管理タブ表示可・どのメンバーの名刺も見える
 const ADMIN_EMAILS = new Set([
-  "fujiguchi@bridge-one.co.jp",   // システム管理者
-  "toyoizumi@bridge-one.co.jp",   // 業務管理者
-  "yamanaka@bridge-one.co.jp",    // 業務管理者
+  "fujiguchi@bridge-one.co.jp",   // 藤口（システム管理者）
+  "toyoizumi@bridge-one.co.jp",   // 豊泉（業務管理者）
+  "yamakita@bridge-one.co.jp",    // 山北（業務管理者）
 ]);
 
 function lookupMember(email){
