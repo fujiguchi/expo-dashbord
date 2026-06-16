@@ -348,8 +348,9 @@ footer{margin-top:24px;padding:14px;font-size:11px;color:var(--muted);text-align
     <div class="panel" style="margin-top:14px">
       <h2>🛠 データメンテナンス</h2>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn success" onclick="loadSampleData()">🎲 サンプルデータ投入</button>
-        <button class="btn secondary" onclick="exportAllJSON()">💾 全データJSONエクスポート</button>
+        <button class="btn primary" onclick="loadJapanBuild()">📥 Japan BUILD 2025/12/10 を取り込む（同梱・373件）</button>
+        <button class="btn success" onclick="loadSampleData()">🎲 サンプル少量投入</button>
+        <button class="btn secondary" onclick="exportAllJSON()">💾 JSONエクスポート</button>
         <button class="btn secondary" onclick="document.getElementById('jsonFile').click()">📤 JSON取り込み</button>
         <input type="file" id="jsonFile" accept=".json" style="display:none">
         <button class="btn danger" onclick="wipeAll()">⚠ 全データ消去</button>
@@ -1206,6 +1207,61 @@ function wipeAll(){
   localStorage.removeItem(K_DATA); localStorage.removeItem(K_EVENTS);
   DATA = []; EVENTS = loadEvents();
   showToast("✓ 全消去しました"); renderAll();
+}
+
+async function loadJapanBuild(){
+  if(DATA.length && !confirm(`既存データが ${DATA.length} 件あります。Japan BUILD 2025 データを追加で取り込みますか？`)) return;
+  try{
+    const res = await fetch("移行データ_EV-2025-1210.csv");
+    if(!res.ok) throw new Error("CSVが見つかりません。同フォルダに 移行データ_EV-2025-1210.csv を配置してください。");
+    const text = await res.text();
+    const lines = text.replace(/^﻿/,"").split(/\r?\n/).filter(l=>l.trim());
+    if(lines.length<2){ showToast("CSVが空","err"); return; }
+    const parse = line => {
+      const out=[],re=/("([^"]|"")*"|[^,]+)?,/g;
+      const wrapped = line+",";
+      let m; while((m=re.exec(wrapped))!==null){ out.push(m[1]||""); }
+      return out.map(p=>p.replace(/^"|"$/g,"").replace(/""/g,'"'));
+    };
+    const header = parse(lines[0]);
+    const idx = name => header.findIndex(h=>h.includes(name));
+    const I = {
+      event:idx("イベント"), staff:idx("担当"), company:idx("会社"), title:idx("役職"),
+      person:idx("氏名"), pref:idx("都道府県"), dt:idx("交換日時"), appt:idx("アポ"),
+      pos:idx("ポジ"), counter:idx("カウンター"), pres:idx("社長"), member:idx("担当フラグ"),
+      sales:idx("成約"), service:idx("サービス"), memo:idx("備考"),
+    };
+    if(!EVENTS["EV-2025-1210"]){
+      EVENTS["EV-2025-1210"] = {name:"Japan BUILD 2025/12/10", date:"2025-12-10"};
+    }
+    const recs = [];
+    let baseId = Date.now();
+    for(let i=1;i<lines.length;i++){
+      const c = parse(lines[i]);
+      const company = (c[I.company]||"").trim();
+      if(!company) continue;
+      recs.push({
+        id: baseId+i,
+        event: c[I.event]||"EV-2025-1210",
+        staff: c[I.staff]||"", company,
+        title: c[I.title]||"", person: c[I.person]||"", pref: c[I.pref]||"",
+        dt: c[I.dt]||"2025-12-10",
+        appt: c[I.appt]||"", pos: c[I.pos]||"",
+        counter: Number(c[I.counter])||0,
+        isPres: (c[I.pres]||"").includes("◯")?1:0,
+        isMember: (c[I.member]||"◯").includes("◯")?1:0,
+        sales: Number((c[I.sales]||"").replace(/[^\d]/g,""))||0,
+        service: c[I.service]||"", memo: c[I.memo]||"",
+      });
+    }
+    DATA = [...recs, ...DATA];
+    saveData(DATA); saveEvents(EVENTS);
+    showToast(`✓ Japan BUILD 2025 を取り込みました（${recs.length}件）`);
+    renderAll();
+  }catch(err){
+    showToast(err.message,"err");
+    console.error(err);
+  }
 }
 
 function loadSampleData(){
