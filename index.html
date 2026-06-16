@@ -2043,26 +2043,37 @@ async function pushAllToRemote(){
   }
 }
 
-// ========== TODAY (mobile-first) ==========
+// ========== TODAY (mobile-first / 本人のみ) ==========
 function renderToday(){
-  const all = (typeof getVisibleData === 'function') ? getVisibleData() : DATA;
+  // 「今日」タブは常に本人の登録分のみ（管理者でも自分だけ・モチベーション用）
+  const all = DATA;
   const today = new Date().toISOString().slice(0,10); // YYYY-MM-DD
-  const isMine = r => USER.role==="admin" ? true : canSeeRecord(r);
-  // 日付判定: rec.dt が YYYY-MM-DD で始まる
+  // 本人判定：admin でも 自分の名刺だけに絞る
+  const isMine = r => {
+    const s = (r.staff||"").trim(); if(!s) return false;
+    if(s === USER.fullName) return true;
+    if(s === USER.shortName) return true;
+    if(s === USER.emailPrefix) return true;
+    if(USER.fullName && USER.fullName.startsWith(s)) return true;
+    if(s.startsWith(USER.shortName)) return true;
+    return false;
+  };
   const matchDay = (r,d) => (r.dt||"").startsWith(d) || (r.dt||"").startsWith(d.replace(/-/g,"/"));
-  const myToday = all.filter(r => isMine(r) && matchDay(r,today));
+  const myCards = all.filter(isMine);
+  const myToday = myCards.filter(r => matchDay(r,today));
 
   // 今週・今月
   const now = new Date();
   const week = new Date(now); week.setDate(now.getDate()-now.getDay()); // 日曜
   const weekStr = week.toISOString().slice(0,10);
   const monthStr = today.slice(0,7);
-  const myWeek = all.filter(r => isMine(r) && ((r.dt||"").slice(0,10).replace(/\//g,"-") >= weekStr));
-  const myMonth = all.filter(r => isMine(r) && (r.dt||"").slice(0,7).replace(/\//g,"-") === monthStr);
+  const myWeek = myCards.filter(r => ((r.dt||"").slice(0,10).replace(/\//g,"-") >= weekStr));
+  const myMonth = myCards.filter(r => (r.dt||"").slice(0,7).replace(/\//g,"-") === monthStr);
 
   // KPI
   const presToday = myToday.filter(r=>r.isPres).length;
   const execToday = myToday.filter(r=>r.isExec).length;
+  const totalAll = myCards.length;
   document.getElementById("todayKpis").innerHTML = [
     {l:"📅 今日",val:fmtNum(myToday.length),u:"枚",cls:""},
     {l:"今週",val:fmtNum(myWeek.length),u:"枚"},
@@ -2070,10 +2081,9 @@ function renderToday(){
     {l:"今日 社長/役員",val:`${presToday}/${execToday}`,cls:"pres"},
   ].map(k=>`<div class="kpi ${k.cls||''}"><div class="label">${k.l}</div><div class="val">${k.val}<span class="unit">${k.u||''}</span></div></div>`).join("");
 
-  // 今日の一覧
-  document.getElementById("todayListTitle").textContent = USER.role==="admin"
-    ? `📇 今日 全社で登録された名刺（${myToday.length}件）`
-    : `📇 今日 あなたが登録した名刺（${myToday.length}件）`;
+  // 今日の一覧（本人のみ）
+  document.getElementById("todayListTitle").innerHTML =
+    `📇 今日 あなたが登録した名刺（${myToday.length}件） <span style="font-weight:400;color:var(--muted);font-size:11px">／ 累計 ${totalAll}枚</span>`;
   const listEl = document.getElementById("todayList");
   if(!myToday.length){
     listEl.innerHTML = '<div class="sub" style="text-align:center;padding:20px">まだ今日の登録はありません。<br>上の「＋ 名刺を登録」から開始してください</div>';
