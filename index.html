@@ -222,6 +222,19 @@ footer{margin-top:32px;padding:18px;font-size:11px;color:var(--muted-2);text-ali
 .import-zone{border:2px dashed var(--primary);background:var(--primary-50);border-radius:12px;padding:24px;text-align:center;color:var(--primary);font-size:13.5px;font-weight:600;cursor:pointer;margin:12px 0;transition:all .15s}
 .import-zone:hover{background:var(--primary-100);transform:translateY(-1px)}
 .import-zone small{display:block;font-weight:400;color:var(--muted);margin-top:6px;font-size:11.5px}
+
+/* 詳細列の表示切替（デフォルト非表示） */
+.detail-col{display:none}
+body.show-detail-cols .detail-col{display:table-cell}
+
+/* 担当者フィルタチップ */
+.staff-chip{padding:6px 12px;border:1.5px solid var(--line);background:#fff;border-radius:999px;font:inherit;font-size:12px;cursor:pointer;color:var(--text-2);font-weight:500;transition:all .15s;display:inline-flex;align-items:center;gap:6px}
+.staff-chip:hover:not(.active){border-color:var(--muted-2);background:var(--bg-2)}
+.staff-chip.active{background:var(--navy);color:#fff;border-color:var(--navy);box-shadow:var(--shadow-sm)}
+.staff-chip .count{background:rgba(255,255,255,.2);padding:1px 6px;border-radius:999px;font-size:10px}
+.staff-chip:not(.active) .count{background:var(--bg-2);color:var(--muted)}
+.staff-chip.all{background:var(--primary-100);color:var(--primary);border-color:var(--primary-100);font-weight:600}
+.staff-chip.all.active{background:var(--primary);color:#fff;border-color:var(--primary)}
 </style>
 </head>
 <body>
@@ -349,22 +362,43 @@ footer{margin-top:32px;padding:18px;font-size:11px;color:var(--muted-2);text-ali
   <section class="section" id="sec-records">
     <div class="panel">
       <h2>全名刺レコード</h2>
+
+      <!-- 担当者クイック選択（横スクロールチップ） -->
+      <div style="margin-bottom:12px">
+        <div style="font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.04em;text-transform:uppercase;margin-bottom:6px">担当者で絞り込み</div>
+        <div id="staffFilterChips" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+      </div>
+
       <div class="search-bar">
         <input id="searchInput" type="search" placeholder="🔍 会社・氏名・備考で検索">
         <select id="filterEvent"><option value="">全イベント</option></select>
-        <select id="filterStaff"><option value="">全スタッフ</option></select>
+        <select id="filterStaff" style="display:none"><option value="">全スタッフ</option></select>
         <select id="filterAppt"><option value="">全アポ状態</option><option>◯</option><option>×</option><option>追い中</option></select>
-        <select id="filterPos"><option value="">全ポジション</option><option>ブース</option><option>外回り</option><option>その他</option></select>
-        <select id="filterPres"><option value="">役職フラグ：全て</option><option value="1">社長のみ</option></select>
+        <select id="filterPres"><option value="">役職：全て</option><option value="1">社長のみ</option></select>
+        <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--muted);cursor:pointer">
+          <input type="checkbox" id="showAllCols" style="accent-color:var(--primary)"> 詳細列を表示
+        </label>
         <button class="btn secondary sm" onclick="exportCSV()">📥 CSV出力</button>
       </div>
+
       <div class="scroll-y" style="overflow:auto;max-height:520px"><table id="tblRecords">
-        <thead><tr><th class="left">イベント</th><th class="left admin-only">担当</th><th class="left">会社名</th>
-          <th class="left">役職</th><th class="left">氏名</th><th class="left">県</th>
-          <th class="left">交換日時</th><th class="left">アポ</th><th>商談化</th><th class="left">ポジ</th>
-          <th class="pres-cell-soft">社長</th><th>成約</th><th class="left">サービス</th><th></th></tr></thead>
+        <thead><tr>
+          <th class="left">イベント</th>
+          <th class="left admin-only">担当</th>
+          <th class="left">会社名</th>
+          <th class="left">氏名／役職</th>
+          <th class="left">アポ</th>
+          <th class="pres-cell-soft">社長</th>
+          <th>成約</th>
+          <th class="left detail-col">県</th>
+          <th class="left detail-col">交換日時</th>
+          <th class="detail-col">商談化</th>
+          <th class="left detail-col">ポジ</th>
+          <th class="left detail-col">サービス</th>
+          <th></th>
+        </tr></thead>
         <tbody></tbody></table></div>
-      <div class="sub" id="recordCount"></div>
+      <div class="sub" id="recordCount" style="margin-top:8px"></div>
     </div>
   </section>
 
@@ -1253,32 +1287,44 @@ window.showEvent = function(code){
 };
 
 // ========== RECORDS ==========
+let staffFilter = ""; // チップで選択中の担当者
 function renderRecords(){
   const fe = document.getElementById("filterEvent");
-  fe.innerHTML = '<option value="">全イベント</option>' + Object.entries(EVENTS).map(([k,v])=>`<option value="${k}">${v.name}</option>`).join("");
-  const fs = document.getElementById("filterStaff");
-  if(USER.role==="admin"){
-    fs.style.display = "";
-    fs.innerHTML = '<option value="">全スタッフ</option>' + [...new Set(DATA.map(m=>m.staff))].map(s=>`<option>${s}</option>`).join("");
-  } else {
-    fs.style.display = "none";
-    fs.value = "";
+  fe.innerHTML = '<option value="">全イベント</option>' + Object.entries(EVENTS).sort((a,b)=>(a[1].date||"").localeCompare(b[1].date||"")).map(([k,v])=>`<option value="${k}">${v.name}</option>`).join("");
+
+  // 担当者チップ
+  const staffCounts = {};
+  DATA.forEach(m=>{ const s=m.staff||"(未設定)"; staffCounts[s]=(staffCounts[s]||0)+1; });
+  const staffSorted = Object.entries(staffCounts).sort((a,b)=>b[1]-a[1]);
+  const chipsEl = document.getElementById("staffFilterChips");
+  if(chipsEl){
+    chipsEl.innerHTML =
+      `<button class="staff-chip all ${staffFilter===""?"active":""}" onclick="setStaffFilter('')">全員 <span class="count">${DATA.length}</span></button>` +
+      staffSorted.map(([s,c])=>`<button class="staff-chip ${staffFilter===s?"active":""}" onclick="setStaffFilter('${s.replace(/'/g,"\\'")}')">${s} <span class="count">${c}</span></button>`).join("");
   }
-  document.querySelectorAll(".search-bar input, .search-bar select").forEach(el=>el.oninput=applyFilter);
+
+  // 詳細列トグル
+  const showAll = document.getElementById("showAllCols");
+  if(showAll){
+    showAll.onchange = ()=>{ document.body.classList.toggle("show-detail-cols", showAll.checked); };
+  }
+
+  document.querySelectorAll("#sec-records .search-bar input, #sec-records .search-bar select").forEach(el=>el.oninput=applyFilter);
   applyFilter();
 }
+window.setStaffFilter = function(s){
+  staffFilter = s;
+  renderRecords();
+};
 function applyFilter(){
   const q = (document.getElementById("searchInput").value||"").toLowerCase();
   const ev = document.getElementById("filterEvent").value;
-  const st = document.getElementById("filterStaff").value;
   const ap = document.getElementById("filterAppt").value;
-  const po = document.getElementById("filterPos").value;
   const pr = document.getElementById("filterPres").value;
   const filtered = DATA.filter(m=>{
     if(ev && m.event!==ev) return false;
-    if(st && m.staff!==st) return false;
+    if(staffFilter && (m.staff||"(未設定)")!==staffFilter) return false;
     if(ap && m.appt!==ap) return false;
-    if(po && m.pos!==po) return false;
     if(pr==="1" && !m.isPres) return false;
     if(q){
       const hay = [m.company,m.person,m.memo,m.title].join("").toLowerCase();
@@ -1290,19 +1336,25 @@ function applyFilter(){
   document.querySelectorAll(".admin-only").forEach(el=>el.style.display = showStaffCol ? "" : "none");
   document.querySelector("#tblRecords tbody").innerHTML = filtered.map(r=>{
     const canEdit = USER.role==="admin" || r.staff===USER.staff;
+    const evShort = (r.event||"").replace("EV-","");
+    const titlePerson = (r.title||"") + (r.title&&r.person?' / ':'') + (r.person||"");
     return `<tr>
-    <td>${r.event}</td>${showStaffCol?`<td>${r.staff}</td>`:""}<td><b>${maskCompany(r.company,r)}</b></td>
-    <td>${r.title||""}</td><td>${r.person||""}</td><td>${r.pref||""}</td>
-    <td>${(r.dt||"").slice(5)}</td>
-    <td><span class="chip ${r.appt==="◯"?"ok":r.appt==="×"?"ng":"warn"}">${r.appt||"-"}</span></td>
-    <td>${r.counter||0}</td>
-    <td>${r.pos?'<span class="chip position">'+r.pos+'</span>':""}</td>
-    <td class="pres-cell">${r.isPres?"◯":""}</td>
-    <td>${fmtYen(r.sales)}</td>
-    <td>${r.service?'<span class="chip service">'+r.service+'</span>':""}</td>
-    <td>${canEdit?`<button class="btn sm secondary" onclick="openForm(${r.id})">✏</button> <button class="btn sm danger" onclick="deleteRecord(${r.id})">🗑</button>`:'<span class="locked">権限なし</span>'}</td>
-  </tr>`;}).join("");
-  document.getElementById("recordCount").textContent = `${filtered.length} / ${DATA.length} 件 表示中`;
+      <td><span class="chip" style="font-size:10px">${evShort}</span></td>
+      ${showStaffCol?`<td>${r.staff||""}</td>`:""}
+      <td><b>${maskCompany(r.company,r)}</b></td>
+      <td style="color:var(--text-2);max-width:200px;overflow:hidden;text-overflow:ellipsis">${titlePerson||"—"}</td>
+      <td><span class="chip ${r.appt==="◯"?"ok":r.appt==="×"?"ng":"warn"}">${r.appt||"-"}</span></td>
+      <td class="pres-cell">${r.isPres?"👑":""}</td>
+      <td>${fmtYen(r.sales)}</td>
+      <td class="detail-col">${r.pref||""}</td>
+      <td class="detail-col">${(r.dt||"").slice(5)}</td>
+      <td class="detail-col">${r.counter||0}</td>
+      <td class="detail-col">${r.pos?'<span class="chip position">'+r.pos+'</span>':""}</td>
+      <td class="detail-col">${r.service?'<span class="chip service">'+r.service+'</span>':""}</td>
+      <td>${canEdit?`<button class="btn sm secondary" onclick="openForm(${r.id})">✏</button> <button class="btn sm danger" onclick="deleteRecord(${r.id})">🗑</button>`:'<span class="locked">—</span>'}</td>
+    </tr>`;
+  }).join("");
+  document.getElementById("recordCount").textContent = `${filtered.length} / ${DATA.length} 件 ${staffFilter?'（担当: '+staffFilter+'）':''}`;
 }
 
 // ========== ADMIN ==========
