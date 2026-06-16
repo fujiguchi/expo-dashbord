@@ -26,6 +26,10 @@ create table if not exists public.events (
 alter table public.events
   add column if not exists participants jsonb default '[]'::jsonb;
 
+-- 既存 meishi テーブルに isExec（役員フラグ）追加
+alter table public.meishi
+  add column if not exists "isExec" smallint default 0;
+
 -- ===== meishi（名刺レコード）テーブル =====
 create table if not exists public.meishi (
   id          bigint primary key,
@@ -40,6 +44,7 @@ create table if not exists public.meishi (
   pos         text,
   counter     integer default 0,
   "isPres"    smallint default 0,
+  "isExec"    smallint default 0,
   "isMember"  smallint default 1,
   sales       bigint default 0,
   service     text,

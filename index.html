@@ -104,6 +104,9 @@ button,input,select,textarea{font-family:inherit}
 .kpi.pres{background:linear-gradient(135deg,#fff 0%,var(--pres-soft) 100%)}
 .kpi.pres::before{background:linear-gradient(90deg,var(--pres),#F472B6)}
 .kpi.pres .val{color:var(--pres)}
+.kpi.exec{background:linear-gradient(135deg,#fff 0%,#F3E8FF 100%)}
+.kpi.exec::before{background:linear-gradient(90deg,#9333EA,#C084FC)}
+.kpi.exec .val{color:#7E22CE}
 .kpi.accent{background:linear-gradient(135deg,#fff 0%,var(--accent-soft) 100%)}
 .kpi.accent::before{background:linear-gradient(90deg,var(--accent),#34D399)}
 .kpi.accent .val{color:#047857}
@@ -401,6 +404,7 @@ body.show-detail-cols .detail-col{display:table-cell}
           <th class="left">氏名／役職</th>
           <th class="left">アポ</th>
           <th class="pres-cell-soft">社長</th>
+          <th class="pres-cell-soft" style="background:#F3E8FF">役員</th>
           <th>成約</th>
           <th class="left detail-col">県</th>
           <th class="left detail-col">交換日時</th>
@@ -645,6 +649,7 @@ body.show-detail-cols .detail-col{display:table-cell}
         <label>役職フラグ</label>
         <div class="check-row">
           <label><input type="checkbox" id="f_isPres"> 👑 <b style="color:var(--pres)">社長</b></label>
+          <label><input type="checkbox" id="f_isExec"> 🎖 <b style="color:#9333EA">役員</b></label>
           <label><input type="checkbox" id="f_isMember" checked> 担当</label>
         </div>
       </div>
@@ -1519,7 +1524,7 @@ function autoLoadInitialData(){
     const idx = name => header.findIndex(h=>h.includes(name));
     const I = {event:idx("イベント"),staff:idx("担当"),company:idx("会社"),title:idx("役職"),
       person:idx("氏名"),pref:idx("都道府県"),dt:idx("交換日時"),appt:idx("アポ"),pos:idx("ポジ"),
-      counter:idx("カウンター"),pres:idx("社長"),member:idx("担当フラグ"),sales:idx("成約"),
+      counter:idx("カウンター"),pres:idx("社長"),exec:idx("役員"),member:idx("担当フラグ"),sales:idx("成約"),
       service:idx("サービス"),memo:idx("備考")};
     // 埋め込みメタからイベントを登録
     if(typeof EMBEDDED_EVENTS_META !== "undefined"){
@@ -1587,6 +1592,7 @@ function openForm(id){
     document.getElementById("f_pref").value = r.pref||"";
     if(r.dt){ const [d,t] = r.dt.split(" "); document.getElementById("f_date").value=d; document.getElementById("f_time").value=t||""; }
     document.getElementById("f_isPres").checked = !!r.isPres;
+    document.getElementById("f_isExec").checked = !!r.isExec;
     document.getElementById("f_isMember").checked = !!r.isMember;
     document.getElementById("f_counter").value = r.counter||0;
     document.getElementById("f_sales").value = r.sales||"";
@@ -1613,6 +1619,7 @@ function clearFormFields(){
   document.getElementById("f_pref").value="";
   document.getElementById("f_counter").value="0";
   document.getElementById("f_isPres").checked=false;
+  document.getElementById("f_isExec").checked=false;
   document.getElementById("f_isMember").checked=true;
   const now=new Date();
   document.getElementById("f_date").value=now.toISOString().slice(0,10);
@@ -1787,6 +1794,7 @@ function saveForm(){
     dt:document.getElementById("f_date").value+" "+document.getElementById("f_time").value,
     appt:formState.appt, pos:formState.pos,
     isPres:document.getElementById("f_isPres").checked?1:0,
+    isExec:document.getElementById("f_isExec").checked?1:0,
     isMember:document.getElementById("f_isMember").checked?1:0,
     counter:Number(document.getElementById("f_counter").value)||0,
     sales:Number(document.getElementById("f_sales").value)||0,
@@ -1823,6 +1831,7 @@ function clearFormFieldsForNext(){
   document.getElementById("f_pref").value="";
   document.getElementById("f_counter").value="0";
   document.getElementById("f_isPres").checked=false;
+  document.getElementById("f_isExec").checked=false;
   document.getElementById("f_isMember").checked=true;
   setChip("appt","");
   // pos と svc は保持（同じブースで連続登録するケースが多いため）
@@ -1837,7 +1846,8 @@ function updateSessionList(){
   cnt.textContent = sessionRecs.length;
   list.innerHTML = sessionRecs.slice(0,8).map(r=>{
     const tags = [
-      r.isPres?'<span class="chip pres" style="font-size:9px">社長</span>':'',
+      r.isPres?'<span class="chip pres" style="font-size:9px">👑社長</span>':'',
+      r.isExec?'<span class="chip" style="font-size:9px;background:#F3E8FF;color:#7E22CE">🎖役員</span>':'',
       r.appt?`<span class="chip ${r.appt==="◯"?"ok":r.appt==="×"?"ng":"warn"}" style="font-size:9px">${r.appt}</span>`:'',
       r.pos?`<span class="chip position" style="font-size:9px">${r.pos}</span>`:'',
     ].filter(Boolean).join(" ");
@@ -1932,12 +1942,14 @@ function renderOverview(){
   const DATA = (typeof getVisibleData === 'function') ? getVisibleData() : (window.DATA || []);
   const total = DATA.length;
   const pres = DATA.filter(m=>m.isPres).length;
+  const exec = DATA.filter(m=>m.isExec).length;
   const appt = DATA.filter(m=>m.appt==="◯").length;
   const chasing = DATA.filter(m=>m.appt==="追い中").length;
   const sales = DATA.reduce((a,m)=>a+(m.sales||0),0);
   const counter = DATA.reduce((a,m)=>a+(m.counter||0),0);
   const evCount = Object.keys(EVENTS).length;
   const presRate = total ? Math.round(pres/total*100) : 0;
+  const execRate = total ? Math.round(exec/total*100) : 0;
 
   const totalCost = Object.values(EVENTS).reduce((a,e)=>a+(Number(e.cost)||0),0);
   const profit = sales - totalCost;
@@ -1946,7 +1958,8 @@ function renderOverview(){
   document.getElementById("overviewKpis").innerHTML = [
     {l:"イベント数",val:fmtNum(evCount),u:"件"},
     {l:"名刺総数",val:fmtNum(total),u:"枚"},
-    {l:"社長",val:`${pres} (${presRate}%)`,cls:"pres"},
+    {l:"👑 社長",val:`${pres} (${presRate}%)`,cls:"pres"},
+    {l:"🎖 役員",val:`${exec} (${execRate}%)`,cls:"exec"},
     {l:"アポ◯",val:fmtNum(appt),u:"件"},
     {l:"売上 合計",val:fmtYenShort(sales),cls:"accent"},
     {l:"経費 合計",val:fmtYenShort(totalCost),u:""},
@@ -2373,6 +2386,7 @@ function applyFilter(){
       <td style="color:var(--text-2);max-width:200px;overflow:hidden;text-overflow:ellipsis">${titlePerson||"—"}</td>
       <td><span class="chip ${r.appt==="◯"?"ok":r.appt==="×"?"ng":"warn"}">${r.appt||"-"}</span></td>
       <td class="pres-cell">${r.isPres?"👑":""}</td>
+      <td style="background:#F3E8FF;color:#7E22CE;font-weight:700">${r.isExec?"🎖":""}</td>
       <td>${fmtYen(r.sales)}</td>
       <td class="detail-col">${r.pref||""}</td>
       <td class="detail-col">${(r.dt||"").slice(5)}</td>
@@ -2566,8 +2580,8 @@ function deleteEvent(code){
 // CSV IMPORT/EXPORT
 // =========================================================
 function exportCSV(){
-  const headers = ["イベントコード","担当","会社名","役職","氏名","都道府県","交換日時","アポ","ポジション","アポカウンター","社長","担当フラグ","成約額","サービス","備考"];
-  const rows = DATA.map(d=>[d.event,d.staff,d.company,d.title,d.person,d.pref,d.dt,d.appt,d.pos,d.counter,d.isPres?"◯":"",d.isMember?"◯":"",d.sales,d.service,d.memo]);
+  const headers = ["イベントコード","担当","会社名","役職","氏名","都道府県","交換日時","アポ","ポジション","アポカウンター","社長","役員","担当フラグ","成約額","サービス","備考"];
+  const rows = DATA.map(d=>[d.event,d.staff,d.company,d.title,d.person,d.pref,d.dt,d.appt,d.pos,d.counter,d.isPres?"◯":"",d.isExec?"◯":"",d.isMember?"◯":"",d.sales,d.service,d.memo]);
   const csv = [headers, ...rows].map(r=>r.map(c=>`"${(c||"").toString().replace(/"/g,'""')}"`).join(",")).join("\n");
   const blob = new Blob(["﻿"+csv],{type:"text/csv"});
   const url = URL.createObjectURL(blob);
@@ -2593,7 +2607,7 @@ document.getElementById("csvFile").addEventListener("change", e=>{
     const idx = {
       event:colIndex("イベント"), staff:colIndex("担当"), company:colIndex("会社"), title:colIndex("役職"),
       person:colIndex("氏名"), pref:colIndex("都道府県"), dt:colIndex("日時"), appt:colIndex("アポ"),
-      pos:colIndex("ポジ"), counter:colIndex("カウンター"), pres:colIndex("社長"), member:colIndex("担当フラグ"),
+      pos:colIndex("ポジ"), counter:colIndex("カウンター"), pres:colIndex("社長"), exec:colIndex("役員"), member:colIndex("担当フラグ"),
       sales:colIndex("成約"), service:colIndex("サービス"), memo:colIndex("備考"),
     };
     const newRecs = [];
@@ -2612,6 +2626,7 @@ document.getElementById("csvFile").addEventListener("change", e=>{
         appt: cols[idx.appt]||"", pos: cols[idx.pos]||"",
         counter: Number(cols[idx.counter])||0,
         isPres: (cols[idx.pres]||"").includes("◯")?1:0,
+        isExec: (cols[idx.exec]||"").includes("◯")?1:0,
         isMember: (cols[idx.member]||"◯").includes("◯")?1:0,
         sales: Number((cols[idx.sales]||"").replace(/[^\d]/g,""))||0,
         service: cols[idx.service]||"", memo: cols[idx.memo]||"",
