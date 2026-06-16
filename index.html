@@ -223,6 +223,13 @@ footer{margin-top:32px;padding:18px;font-size:11px;color:var(--muted-2);text-ali
 .import-zone:hover{background:var(--primary-100);transform:translateY(-1px)}
 .import-zone small{display:block;font-weight:400;color:var(--muted);margin-top:6px;font-size:11.5px}
 
+/* Sync badge in topbar */
+.sync-badge{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:600;letter-spacing:.02em;cursor:help;border:1px solid transparent}
+.sync-badge.local{background:#FEF3C7;color:#92400E;border-color:#F5D08A}
+.sync-badge.syncing{background:#DBEAFE;color:#1E40AF;border-color:#93C5FD}
+.sync-badge.synced{background:#DCFCE7;color:#047857;border-color:#86EFAC}
+.sync-badge.error{background:#FEE2E2;color:#B91C1C;border-color:#FCA5A5}
+
 /* 詳細列の表示切替（デフォルト非表示） */
 .detail-col{display:none}
 body.show-detail-cols .detail-col{display:table-cell}
@@ -259,6 +266,7 @@ body.show-detail-cols .detail-col{display:table-cell}
 <div class="topbar" id="topbar" style="display:none">
   <div class="brand">🎪 エキスポDB <span class="badge">v1.0</span></div>
   <button class="btn primary sm" onclick="openForm()">＋ 名刺を登録</button>
+  <span id="syncBadge" class="sync-badge local" title="DB同期状態">💾 ローカル</span>
   <div class="user">
     <span id="userName">柴田</span><span class="role" id="userRole">一般</span>
     <button class="logout" onclick="logout()">ログアウト</button>
@@ -460,6 +468,24 @@ body.show-detail-cols .detail-col{display:table-cell}
     </div>
 
     <div class="panel" style="margin-top:14px">
+      <h2>☁ 共有DB（Supabase）接続</h2>
+      <div class="info-box" style="margin-bottom:10px">
+        <b>未設定だとLocalStorage（端末ごと別）。</b>Supabase URLとAnon Keyを入れると全員で同じデータを共有できます。<br>
+        セットアップ手順 → 同梱の <code>setup_supabase.md</code> 参照
+      </div>
+      <div class="search-bar">
+        <input id="supaUrl" type="text" placeholder="Supabase URL（例: https://xxx.supabase.co）" style="flex:2;min-width:280px">
+        <input id="supaKey" type="password" placeholder="anon public key" style="flex:2;min-width:280px">
+        <button class="btn primary sm" onclick="saveSupaConfig()">✓ 接続保存</button>
+        <button class="btn secondary sm" onclick="clearSupaConfig()">接続解除</button>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+        <button class="btn success sm" onclick="manualSync()">⟳ いま同期する（クラウド→ローカル）</button>
+        <button class="btn primary sm" onclick="pushAllToRemote()">⬆ ローカルをクラウドへ全送信</button>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top:14px">
       <h2>🛠 データメンテナンス</h2>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn primary" onclick="loadJapanBuild()">📥 Japan BUILD 2025/12/10 を取り込む（同梱・373件）</button>
@@ -467,15 +493,15 @@ body.show-detail-cols .detail-col{display:table-cell}
         <button class="btn secondary" onclick="exportAllJSON()">💾 JSONエクスポート</button>
         <button class="btn secondary" onclick="document.getElementById('jsonFile').click()">📤 JSON取り込み</button>
         <input type="file" id="jsonFile" accept=".json" style="display:none">
-        <button class="btn danger" onclick="wipeAll()">⚠ 全データ消去</button>
+        <button class="btn danger" onclick="wipeAll()">⚠ ローカルデータ全消去</button>
       </div>
       <div class="info-box" style="margin-top:10px">
-        現在の保存件数：<b id="dataCount">0</b> 名刺、<b id="eventDataCount">0</b> イベント　／　ストレージ：LocalStorage
+        現在の保存件数：<b id="dataCount">0</b> 名刺、<b id="eventDataCount">0</b> イベント　／　モード：<b id="storageMode">LocalStorage</b>
       </div>
     </div>
   </section>
 
-  <footer>エキスポDB v1.0 ｜ 仕様書 v6準拠 ｜ LocalStorage動作（実装時はAPI接続）</footer>
+  <footer>エキスポDB v1.0 ｜ <span id="footerMode">LocalStorage</span>動作 ｜ Supabase接続で全員共有可</footer>
 </div>
 
 <!-- ============ Modal: 名刺登録フォーム ============ -->
@@ -596,23 +622,133 @@ body.show-detail-cols .detail-col{display:table-cell}
 
 <div class="toast" id="toast"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script>
 // =========================================================
-// STORAGE
+// STORAGE  (LocalStorage + Supabase hybrid)
 // =========================================================
-const K_DATA = "meishi_app_v1_data";
+const K_DATA   = "meishi_app_v1_data";
 const K_EVENTS = "meishi_app_v1_events";
-const K_USER = "meishi_app_v1_user";
+const K_USER   = "meishi_app_v1_user";
+const K_SUPA   = "meishi_app_v1_supa_config";  // {url, key}
 
-function loadData(){ return JSON.parse(localStorage.getItem(K_DATA)||"[]"); }
-function saveData(d){ localStorage.setItem(K_DATA, JSON.stringify(d)); }
-function loadEvents(){
+// --- Supabase client setup ---
+let SUPA = null;            // SupabaseClient or null
+let SYNC_STATE = "local";   // "local" | "syncing" | "synced" | "error"
+function initSupabase(){
+  const cfg = JSON.parse(localStorage.getItem(K_SUPA)||"null");
+  if(!cfg || !cfg.url || !cfg.key){ SUPA = null; SYNC_STATE = "local"; return false; }
+  if(typeof supabase === "undefined" || !supabase.createClient){
+    console.error("Supabase SDK未ロード");
+    SUPA = null; SYNC_STATE = "error"; return false;
+  }
+  try{
+    SUPA = supabase.createClient(cfg.url, cfg.key);
+    SYNC_STATE = "syncing";
+    return true;
+  }catch(e){ console.error(e); SUPA = null; SYNC_STATE = "error"; return false; }
+}
+
+// --- LocalStorage 永続化（オフライン/フォールバック） ---
+function loadDataLocal(){ return JSON.parse(localStorage.getItem(K_DATA)||"[]"); }
+function saveDataLocal(d){ localStorage.setItem(K_DATA, JSON.stringify(d)); }
+function loadEventsLocal(){
   return JSON.parse(localStorage.getItem(K_EVENTS)||JSON.stringify({
     "EV-2025-1210":{name:"Japan BUILD 2025/12/10",date:"2025-12-10"},
   }));
 }
-function saveEvents(e){ localStorage.setItem(K_EVENTS, JSON.stringify(e)); }
+function saveEventsLocal(e){ localStorage.setItem(K_EVENTS, JSON.stringify(e)); }
 
+// --- Supabase fetch/upsert (async) ---
+async function fetchAllFromSupabase(){
+  if(!SUPA) return null;
+  try{
+    const [{data:meishi,error:e1},{data:events,error:e2}] = await Promise.all([
+      SUPA.from("meishi").select("*").order("dt",{ascending:false}),
+      SUPA.from("events").select("*"),
+    ]);
+    if(e1||e2){ console.error(e1||e2); SYNC_STATE="error"; return null; }
+    SYNC_STATE = "synced";
+    const evMap = {};
+    (events||[]).forEach(e=>{ evMap[e.code] = {name:e.name, date:e.date, cost:Number(e.cost)||0}; });
+    return {data: meishi||[], events: evMap};
+  }catch(err){ console.error(err); SYNC_STATE="error"; return null; }
+}
+async function upsertMeishi(rec){
+  if(!SUPA) return;
+  const {error} = await SUPA.from("meishi").upsert([rec],{onConflict:"id"});
+  if(error) console.error("upsert meishi:", error);
+  else SYNC_STATE="synced";
+}
+async function deleteMeishi(id){
+  if(!SUPA) return;
+  const {error} = await SUPA.from("meishi").delete().eq("id",id);
+  if(error) console.error("delete meishi:", error);
+}
+async function upsertEvent(code, ev){
+  if(!SUPA) return;
+  const {error} = await SUPA.from("events").upsert([{code, name:ev.name, date:ev.date, cost:Number(ev.cost)||0}],{onConflict:"code"});
+  if(error) console.error("upsert event:", error);
+}
+async function deleteEventRemote(code){
+  if(!SUPA) return;
+  await SUPA.from("events").delete().eq("code", code);
+  await SUPA.from("meishi").delete().eq("event", code);
+}
+
+// --- Unified save: local first, then push to Supabase async ---
+function saveData(d){
+  saveDataLocal(d);
+  if(SUPA){
+    // 全件 upsert （シンプル戦略・件数少なめ前提）
+    SUPA.from("meishi").upsert(d, {onConflict:"id"}).then(({error})=>{
+      if(error){ console.error(error); SYNC_STATE="error"; updateSyncBadge(); }
+      else { SYNC_STATE="synced"; updateSyncBadge(); }
+    });
+  }
+}
+function saveEvents(e){
+  saveEventsLocal(e);
+  if(SUPA){
+    const rows = Object.entries(e).map(([code,ev])=>({code, name:ev.name, date:ev.date, cost:Number(ev.cost)||0}));
+    SUPA.from("events").upsert(rows,{onConflict:"code"}).then(({error})=>{
+      if(error){ console.error(error); SYNC_STATE="error"; }
+      else { SYNC_STATE="synced"; }
+      updateSyncBadge();
+    });
+  }
+}
+function loadData(){ return loadDataLocal(); }
+function loadEvents(){ return loadEventsLocal(); }
+
+// Sync badge UI
+function updateSyncBadge(){
+  const b = document.getElementById("syncBadge"); if(!b) return;
+  const map = {
+    local:   {txt:"💾 ローカル",  cls:"local"},
+    syncing: {txt:"⟳ 同期中…",   cls:"syncing"},
+    synced:  {txt:"☁ 同期OK",     cls:"synced"},
+    error:   {txt:"⚠ 同期エラー", cls:"error"},
+  };
+  const m = map[SYNC_STATE] || map.local;
+  b.textContent = m.txt;
+  b.className = "sync-badge " + m.cls;
+}
+
+// Pull from Supabase on startup, override local if remote exists
+async function syncFromRemote(){
+  if(!SUPA) return;
+  const remote = await fetchAllFromSupabase();
+  if(remote){
+    DATA = remote.data;
+    EVENTS = remote.events && Object.keys(remote.events).length ? remote.events : EVENTS;
+    saveDataLocal(DATA); saveEventsLocal(EVENTS);
+    renderAll();
+    updateSyncBadge();
+  }
+}
+
+initSupabase();
 let DATA = loadData();
 let EVENTS = loadEvents();
 let USER = JSON.parse(localStorage.getItem(K_USER)||"null");
@@ -670,11 +806,20 @@ function showApp(){
   const adminTab = document.querySelector('[data-tab="admin"]');
   adminTab.style.display = "";
 
-  // 🔥 初回ログイン時に自動でJapan BUILD 373件をロード
-  if(DATA.length === 0 && typeof EMBEDDED_JAPAN_BUILD_CSV !== "undefined"){
-    autoLoadInitialData();
+  // Supabase 接続中ならクラウドから最新を引いてくる
+  updateSyncBadge();
+  if(SUPA){
+    syncFromRemote().then(()=>{
+      if(DATA.length === 0 && typeof EMBEDDED_JAPAN_BUILD_CSV !== "undefined") autoLoadInitialData();
+      renderAll();
+    });
+  } else {
+    // 🔥 LocalStorageモード：初回ログインで自動投入
+    if(DATA.length === 0 && typeof EMBEDDED_JAPAN_BUILD_CSV !== "undefined"){
+      autoLoadInitialData();
+    }
+    renderAll();
   }
-  renderAll();
 }
 
 function autoLoadInitialData(){
@@ -922,6 +1067,63 @@ function renderAll(){
   renderOverview(); renderStaff(); renderEventSelector(); renderRecords(); renderAdmin();
   document.getElementById("dataCount").textContent = DATA.length;
   document.getElementById("eventDataCount").textContent = Object.keys(EVENTS).length;
+  const modeEl = document.getElementById("storageMode");
+  const footEl = document.getElementById("footerMode");
+  const mode = SUPA ? "Supabase（全員共有）" : "LocalStorage（端末ごと別）";
+  if(modeEl) modeEl.textContent = mode;
+  if(footEl) footEl.textContent = mode;
+  // 設定欄に現在値を反映
+  const cfg = JSON.parse(localStorage.getItem(K_SUPA)||"null");
+  const u = document.getElementById("supaUrl"); const k = document.getElementById("supaKey");
+  if(u && !u.value && cfg) u.value = cfg.url||"";
+  if(k && !k.value && cfg) k.value = cfg.key ? "•".repeat(20) : "";
+}
+
+// ========== Supabase config & sync ==========
+function saveSupaConfig(){
+  const url = document.getElementById("supaUrl").value.trim();
+  let key = document.getElementById("supaKey").value.trim();
+  if(!url || !key){ showToast("URLとキーを入力してください","err"); return; }
+  // マスク（••••）のままなら既存キーを保持
+  const existing = JSON.parse(localStorage.getItem(K_SUPA)||"null");
+  if(/^•+$/.test(key) && existing && existing.key) key = existing.key;
+  localStorage.setItem(K_SUPA, JSON.stringify({url, key}));
+  if(initSupabase()){
+    showToast("✓ Supabase接続を保存しました。同期します");
+    syncFromRemote().then(()=>renderAll());
+  } else {
+    showToast("接続失敗。URL/キー確認を","err");
+  }
+}
+function clearSupaConfig(){
+  if(!confirm("Supabase接続設定を削除しますか？（データは残ります）")) return;
+  localStorage.removeItem(K_SUPA);
+  SUPA = null; SYNC_STATE="local";
+  updateSyncBadge(); renderAll();
+  showToast("接続解除しました");
+}
+function manualSync(){
+  if(!SUPA){ showToast("Supabase未接続","err"); return; }
+  SYNC_STATE="syncing"; updateSyncBadge();
+  syncFromRemote().then(()=>{
+    renderAll();
+    showToast("✓ クラウドから同期しました");
+  });
+}
+async function pushAllToRemote(){
+  if(!SUPA){ showToast("Supabase未接続","err"); return; }
+  if(!confirm(`ローカルの ${DATA.length}件 + ${Object.keys(EVENTS).length}イベント をクラウドに送信します。よろしいですか？`)) return;
+  SYNC_STATE="syncing"; updateSyncBadge();
+  const evRows = Object.entries(EVENTS).map(([code,ev])=>({code, name:ev.name, date:ev.date, cost:Number(ev.cost)||0}));
+  const r1 = await SUPA.from("events").upsert(evRows,{onConflict:"code"});
+  const r2 = await SUPA.from("meishi").upsert(DATA,{onConflict:"id"});
+  if(r1.error||r2.error){
+    SYNC_STATE="error"; updateSyncBadge();
+    showToast("送信エラー: " + (r1.error?.message||r2.error?.message),"err");
+  } else {
+    SYNC_STATE="synced"; updateSyncBadge();
+    showToast(`✓ ${DATA.length}件 / ${evRows.length}イベント 送信完了`);
+  }
 }
 
 // ========== OVERVIEW ==========
