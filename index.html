@@ -237,6 +237,22 @@ footer{margin-top:24px;padding:14px;font-size:11px;color:var(--muted);text-align
           <th>アポ◯</th><th>商談化</th><th>追い中</th><th>成約合計</th></tr></thead>
         <tbody></tbody><tfoot><tr id="staffTfoot"></tr></tfoot></table></div>
     </div>
+
+    <div class="panel" style="margin-top:14px">
+      <h2>スタッフ × イベント ピボット <span class="badge" style="background:#FEF3C7;color:#92400E;font-size:10px;padding:2px 8px;border-radius:999px;margin-left:8px">NEW</span></h2>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:8px">
+        セル数値 = そのスタッフがそのイベントで取った名刺数 ／ 列ヘッダーのイベント名クリックでイベント詳細へ
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;font-size:12px">
+        指標：
+        <button class="chip-btn active" data-pivot="cards" onclick="setPivot(this,'cards')">名刺数</button>
+        <button class="chip-btn" data-pivot="pres" onclick="setPivot(this,'pres')">社長◯</button>
+        <button class="chip-btn" data-pivot="appt" onclick="setPivot(this,'appt')">アポ◯</button>
+        <button class="chip-btn" data-pivot="sales" onclick="setPivot(this,'sales')">成約額</button>
+      </div>
+      <div style="overflow-x:auto"><table id="tblPivot"><thead></thead><tbody></tbody><tfoot></tfoot></table></div>
+    </div>
+
     <div class="panel" style="margin-top:14px">
       <h2 id="personalTitle">個人詳細</h2>
       <div id="personalContent"></div>
@@ -953,7 +969,64 @@ function renderStaff(){
     <td>${fmtNum(tot.appt)}</td><td>${fmtNum(tot.counter)}</td><td>${fmtNum(tot.chase)}</td>
     <td>${fmtYenShort(tot.sales)}</td>`;
 
+  renderPivot(list);
   showPersonal(USER.staff in map ? USER.staff : list[0].name);
+}
+
+// ========== PIVOT (Staff × Event) ==========
+let PIVOT_METRIC = "cards"; // cards | pres | appt | sales
+window.setPivot = function(btn, metric){
+  PIVOT_METRIC = metric;
+  document.querySelectorAll('[data-pivot]').forEach(b=>b.classList.remove("active"));
+  btn.classList.add("active");
+  renderStaff();
+};
+
+function renderPivot(staffList){
+  const evs = Object.entries(EVENTS).sort((a,b)=>(a[1].date||"").localeCompare(b[1].date||""));
+  if(!evs.length || !staffList.length){
+    document.querySelector("#tblPivot thead").innerHTML = "";
+    document.querySelector("#tblPivot tbody").innerHTML = "";
+    document.querySelector("#tblPivot tfoot").innerHTML = "";
+    return;
+  }
+  const valOf = (recs) => {
+    if(PIVOT_METRIC==="cards") return recs.length;
+    if(PIVOT_METRIC==="pres")  return recs.filter(r=>r.isPres).length;
+    if(PIVOT_METRIC==="appt")  return recs.filter(r=>r.appt==="◯").length;
+    if(PIVOT_METRIC==="sales") return recs.reduce((a,r)=>a+(r.sales||0),0);
+    return 0;
+  };
+  const fmt = v => PIVOT_METRIC==="sales" ? fmtYenShort(v) : (v?fmtNum(v):"—");
+
+  // header
+  const headHtml = "<tr><th class='left'>スタッフ</th>" +
+    evs.map(([code,ev])=>`<th class="left" style="white-space:nowrap;cursor:pointer" onclick="goEvent('${code}')" title="${ev.date}">${ev.name.length>14?ev.name.slice(0,12)+'…':ev.name}<br><span style="font-weight:400;font-size:9px;color:#cbd5e1">${ev.date}</span></th>`).join("") +
+    "<th>合計</th></tr>";
+  document.querySelector("#tblPivot thead").innerHTML = headHtml;
+
+  // body: 各スタッフ × 各イベント
+  const rowsHtml = staffList.map(s=>{
+    const cells = evs.map(([code])=>{
+      const recs = DATA.filter(r=>r.staff===s.name && r.event===code);
+      const v = valOf(recs);
+      const intensity = v;
+      const bg = v>0 ? `background:rgba(31,78,120,${Math.min(0.15,v/200)+0.05})` : "background:#FAFBFD";
+      return `<td style="${bg}">${fmt(v)}</td>`;
+    }).join("");
+    const total = valOf(DATA.filter(r=>r.staff===s.name));
+    return `<tr><td class="left"><span class="avatar">${initials(s.name)}</span><b>${s.name}</b></td>${cells}<td style="font-weight:700;background:#EAF1FA">${fmt(total)}</td></tr>`;
+  }).join("");
+  document.querySelector("#tblPivot tbody").innerHTML = rowsHtml;
+
+  // footer: 各イベントの合計
+  const footCells = evs.map(([code])=>{
+    const recs = DATA.filter(r=>r.event===code);
+    return `<td style="font-weight:700">${fmt(valOf(recs))}</td>`;
+  }).join("");
+  const grandTotal = valOf(DATA);
+  document.querySelector("#tblPivot tfoot").innerHTML =
+    `<tr><td class="left">合計</td>${footCells}<td style="background:#1F4E78;color:#fff;font-weight:700">${fmt(grandTotal)}</td></tr>`;
 }
 
 window.showPersonal = function(staff){
