@@ -217,7 +217,7 @@ footer{margin-top:24px;padding:14px;font-size:11px;color:var(--muted);text-align
       <h2>イベント一覧</h2>
       <div style="overflow-x:auto"><table id="tblEvents">
         <thead><tr><th class="left">コード</th><th class="left">開催日</th><th class="left">イベント名</th>
-          <th>名刺数</th><th class="pres-cell-soft">社長</th><th>アポ◯</th><th>商談化</th><th>追い中</th><th>成約合計</th></tr></thead>
+          <th>名刺数</th><th class="pres-cell-soft">社長</th><th>アポ◯</th><th>売上</th><th>経費</th><th>粗利</th><th>粗利率</th><th>1名刺/売上</th></tr></thead>
         <tbody></tbody></table></div>
     </div>
   </section>
@@ -338,13 +338,14 @@ footer{margin-top:24px;padding:14px;font-size:11px;color:var(--muted);text-align
       <h2>📅 イベント一覧 / 追加</h2>
       <p style="font-size:12px;color:var(--muted)">新規イベントを登録できます。コード形式：EV-YYYY-MMDD</p>
       <div class="search-bar">
-        <input id="newEventCode" placeholder="EV-2026-0701" style="max-width:160px">
-        <input id="newEventName" placeholder="イベント名" style="max-width:240px">
-        <input id="newEventDate" type="date" style="max-width:160px">
+        <input id="newEventCode" placeholder="EV-2026-0701" style="max-width:140px">
+        <input id="newEventName" placeholder="イベント名" style="max-width:200px">
+        <input id="newEventDate" type="date" style="max-width:150px">
+        <input id="newEventCost" type="number" placeholder="経費（円）" min="0" style="max-width:130px">
         <button class="btn primary sm" onclick="addEvent()">＋ 追加</button>
       </div>
       <div style="overflow-x:auto;margin-top:10px"><table id="tblEventAdmin">
-        <thead><tr><th class="left">コード</th><th class="left">開催日</th><th class="left">名前</th><th>名刺数</th><th></th></tr></thead>
+        <thead><tr><th class="left">コード</th><th class="left">開催日</th><th class="left">名前</th><th>名刺数</th><th>売上</th><th>経費（編集可）</th><th>粗利</th><th></th></tr></thead>
         <tbody></tbody></table></div>
     </div>
 
@@ -800,13 +801,18 @@ function renderOverview(){
   const evCount = Object.keys(EVENTS).length;
   const presRate = total ? Math.round(pres/total*100) : 0;
 
+  const totalCost = Object.values(EVENTS).reduce((a,e)=>a+(Number(e.cost)||0),0);
+  const profit = sales - totalCost;
+  const profitRate = sales>0 ? Math.round(profit/sales*100) : 0;
+
   document.getElementById("overviewKpis").innerHTML = [
     {l:"イベント数",val:fmtNum(evCount),u:"件"},
     {l:"名刺総数",val:fmtNum(total),u:"枚"},
     {l:"社長",val:`${pres} (${presRate}%)`,cls:"pres"},
-    {l:"アポ◯（即）",val:fmtNum(appt),u:"件"},
-    {l:"商談化アポ（後）",val:fmtNum(counter),u:"件"},
-    {l:"成約合計",val:fmtYenShort(sales),cls:"accent"},
+    {l:"アポ◯",val:fmtNum(appt),u:"件"},
+    {l:"売上 合計",val:fmtYenShort(sales),cls:"accent"},
+    {l:"経費 合計",val:fmtYenShort(totalCost),u:""},
+    {l:`粗利 (${sales>0?profitRate+'%':'—'})`,val:fmtYenShort(profit),cls: profit>=0?"accent":"pres"},
   ].map(k=>`<div class="kpi ${k.cls||''}"><div class="label">${k.l}</div><div class="val">${k.val}<span class="unit">${k.u||''}</span></div></div>`).join("");
 
   if(!total){ ["chartMonthly","chartService","chartEventRank","chartPosition"].forEach(destroyChart); document.querySelector("#tblEvents tbody").innerHTML=""; return; }
@@ -860,17 +866,24 @@ function renderOverview(){
   });
 
   // Event table
-  document.querySelector("#tblEvents tbody").innerHTML = Object.entries(EVENTS).map(([code,ev])=>{
+  document.querySelector("#tblEvents tbody").innerHTML = Object.entries(EVENTS).sort((a,b)=>(a[1].date||"").localeCompare(b[1].date||"")).map(([code,ev])=>{
     const rows = DATA.filter(m=>m.event===code);
     const pres = rows.filter(m=>m.isPres).length;
     const a = rows.filter(m=>m.appt==="◯").length;
-    const cnt = rows.reduce((a,m)=>a+(m.counter||0),0);
-    const c = rows.filter(m=>m.appt==="追い中").length;
     const sl = rows.reduce((a,m)=>a+(m.sales||0),0);
+    const cost = Number(ev.cost)||0;
+    const profit = sl - cost;
+    const profitRate = sl>0 ? Math.round(profit/sl*100) : 0;
+    const perCard = rows.length>0 ? Math.round(sl/rows.length) : 0;
     return `<tr onclick="goEvent('${code}')">
       <td><b>${code}</b></td><td>${ev.date}</td><td><span class="event-link">${ev.name}</span></td>
       <td>${fmtNum(rows.length)}</td><td class="pres-cell">${fmtNum(pres)}</td>
-      <td>${fmtNum(a)}</td><td>${fmtNum(cnt)}</td><td>${fmtNum(c)}</td><td>${fmtYenShort(sl)}</td></tr>`;
+      <td>${fmtNum(a)}</td>
+      <td>${fmtYenShort(sl)}</td>
+      <td>${fmtYenShort(cost)}</td>
+      <td style="color:${profit>=0?'#15803D':'#9D174D'};font-weight:700">${fmtYenShort(profit)}</td>
+      <td style="color:${profitRate>=20?'#15803D':profitRate>=0?'#92400E':'#9D174D'}">${sl>0?profitRate+'%':'—'}</td>
+      <td>${fmtYen(perCard)}</td></tr>`;
   }).join("");
 }
 
@@ -1014,13 +1027,18 @@ window.showEvent = function(code){
   const cnt = rows.reduce((a,m)=>a+(m.counter||0),0);
   const chas = rows.filter(m=>m.appt==="追い中").length;
   const sales = rows.reduce((a,m)=>a+(m.sales||0),0);
+  const evCost = Number(ev.cost)||0;
+  const evProfit = sales - evCost;
+  const evProfitRate = sales>0 ? Math.round(evProfit/sales*100) : 0;
+  const perCard = rows.length>0 ? Math.round(sales/rows.length) : 0;
   document.getElementById("eventKpis").innerHTML = [
     {l:"名刺",val:fmtNum(rows.length),u:"枚"},
     {l:"社長",val:fmtNum(pres),cls:"pres",u:"枚"},
     {l:"アポ◯",val:fmtNum(appt),u:"件"},
-    {l:"商談化",val:fmtNum(cnt),u:"件"},
-    {l:"追い中",val:fmtNum(chas),u:"件"},
-    {l:"成約",val:fmtYenShort(sales),cls:"accent"},
+    {l:"売上",val:fmtYenShort(sales),cls:"accent"},
+    {l:"経費",val:fmtYenShort(evCost)},
+    {l:`粗利 (${sales>0?evProfitRate+'%':'—'})`,val:fmtYenShort(evProfit),cls:evProfit>=0?"accent":"pres"},
+    {l:"1名刺/売上",val:fmtYen(perCard)},
   ].map(k=>`<div class="kpi ${k.cls||''}"><div class="label">${k.l}</div><div class="val">${k.val}<span class="unit">${k.u||''}</span></div></div>`).join("");
 
   // Staff table
@@ -1132,9 +1150,16 @@ function applyFilter(){
 
 // ========== ADMIN ==========
 function renderAdmin(){
-  document.querySelector("#tblEventAdmin tbody").innerHTML = Object.entries(EVENTS).map(([code,ev])=>{
-    const cnt = DATA.filter(d=>d.event===code).length;
-    return `<tr><td><b>${code}</b></td><td>${ev.date}</td><td>${ev.name}</td><td>${fmtNum(cnt)}</td>
+  document.querySelector("#tblEventAdmin tbody").innerHTML = Object.entries(EVENTS).sort((a,b)=>(a[1].date||"").localeCompare(b[1].date||"")).map(([code,ev])=>{
+    const recs = DATA.filter(d=>d.event===code);
+    const sales = recs.reduce((a,m)=>a+(m.sales||0),0);
+    const cost = Number(ev.cost)||0;
+    const profit = sales - cost;
+    return `<tr><td><b>${code}</b></td><td>${ev.date}</td><td>${ev.name}</td>
+      <td>${fmtNum(recs.length)}</td>
+      <td>${fmtYenShort(sales)}</td>
+      <td><input type="number" min="0" value="${cost}" style="width:110px;padding:4px 6px;border:1px solid var(--line);border-radius:6px;font:inherit;font-size:12px" onchange="updateEventCost('${code}',this.value)"></td>
+      <td class="${profit>=0?'':''}" style="color:${profit>=0?'#15803D':'#9D174D'};font-weight:700">${fmtYenShort(profit)}</td>
       <td><button class="btn sm danger" onclick="deleteEvent('${code}')">🗑</button></td></tr>`;
   }).join("");
 }
@@ -1143,13 +1168,22 @@ function addEvent(){
   const code = document.getElementById("newEventCode").value.trim();
   const name = document.getElementById("newEventName").value.trim();
   const date = document.getElementById("newEventDate").value;
+  const cost = Number(document.getElementById("newEventCost").value)||0;
   if(!/^EV-\d{4}-\d{4}$/.test(code)){ showToast("コード形式 EV-YYYY-MMDD","err"); return; }
   if(!name||!date){ showToast("名前と日付を入力","err"); return; }
-  EVENTS[code] = {name,date};
+  EVENTS[code] = {name,date,cost};
   saveEvents(EVENTS);
-  ["newEventCode","newEventName","newEventDate"].forEach(id=>document.getElementById(id).value="");
+  ["newEventCode","newEventName","newEventDate","newEventCost"].forEach(id=>document.getElementById(id).value="");
   showToast("✓ イベント追加");
   renderAll();
+}
+function updateEventCost(code, val){
+  const cost = Number(val)||0;
+  if(!EVENTS[code]) return;
+  EVENTS[code].cost = cost;
+  saveEvents(EVENTS);
+  renderAll();
+  showToast(`✓ ${code} の経費を更新: ¥${cost.toLocaleString()}`);
 }
 function deleteEvent(code){
   const cnt = DATA.filter(d=>d.event===code).length;
