@@ -1,0 +1,1268 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>イベント名刺管理アプリ v1.0</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+:root{
+  --navy:#1F4E78; --navy-soft:#2E6BA8; --bg:#F4F6FA;
+  --card:#fff; --line:#E3E8F0; --text:#1B2733;
+  --muted:#6B7785; --accent:#2DB37B; --warn:#E0524C; --pres:#9D174D; --pres-soft:#FCE7F3;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);
+  font-family:"Yu Gothic UI","Hiragino Sans","Noto Sans JP",system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased}
+
+/* ===== Login screen ===== */
+.login-screen{position:fixed;inset:0;background:linear-gradient(135deg,#1F4E78 0%,#2E6BA8 100%);
+  display:flex;align-items:center;justify-content:center;z-index:1000}
+.login-box{background:#fff;border-radius:14px;padding:32px;width:min(360px,90vw);
+  box-shadow:0 12px 40px rgba(0,0,0,.2)}
+.login-box h1{margin:0 0 4px;color:var(--navy);font-size:22px}
+.login-box .sub{color:var(--muted);font-size:13px;margin-bottom:20px}
+.login-box label{display:block;font-size:12px;font-weight:600;color:var(--navy);margin-top:10px;margin-bottom:4px}
+.login-box input,.login-box select{width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:8px;font:inherit;font-size:14px}
+.login-box button{width:100%;margin-top:18px;padding:11px;background:var(--navy);color:#fff;border:none;border-radius:8px;font:inherit;font-size:15px;font-weight:700;cursor:pointer}
+.login-box button:hover{background:var(--navy-soft)}
+
+/* ===== Top bar ===== */
+.topbar{background:#fff;border-bottom:1px solid var(--line);padding:10px 20px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:50}
+.topbar .brand{font-size:17px;font-weight:700;color:var(--navy)}
+.topbar .badge{background:#FEF3C7;color:#92400E;font-size:10px;padding:2px 8px;border-radius:999px;font-weight:700}
+.topbar .user{margin-left:auto;font-size:13px;color:var(--muted)}
+.topbar .user .role{display:inline-block;background:var(--navy);color:#fff;padding:2px 8px;border-radius:999px;font-size:11px;margin-left:6px;font-weight:600}
+.topbar .user .role.admin{background:var(--pres)}
+.topbar .logout{margin-left:10px;background:transparent;border:1px solid var(--line);color:var(--muted);padding:4px 10px;border-radius:6px;cursor:pointer;font:inherit;font-size:11px}
+
+.page{max-width:1280px;margin:0 auto;padding:22px}
+header.page-header{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:14px;flex-wrap:wrap;gap:12px}
+header.page-header h1{font-size:22px;margin:0;color:var(--navy)}
+.sub{color:var(--muted);font-size:12px;margin-top:3px}
+
+.tabs{display:flex;gap:4px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:4px;margin-bottom:14px;overflow-x:auto}
+.tab{flex:1;min-width:120px;padding:10px;border:none;background:transparent;font:inherit;color:var(--muted);
+  border-radius:8px;cursor:pointer;font-weight:600;font-size:13px;text-align:center;white-space:nowrap}
+.tab.active{background:var(--navy);color:#fff}
+.tab:hover:not(.active){background:#F4F6FA;color:var(--navy)}
+.tab.special{background:#DCFCE7;color:#15803D;font-weight:700}
+.tab.special.active{background:#15803D;color:#fff}
+
+.section{display:none}
+.section.active{display:block}
+
+.kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:14px}
+@media (max-width:980px){.kpis{grid-template-columns:repeat(2,1fr)}}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;box-shadow:0 1px 2px rgba(15,30,55,.04)}
+.kpi .label{font-size:11px;color:var(--muted);font-weight:600}
+.kpi .val{font-size:22px;font-weight:700;color:var(--navy);margin-top:4px;line-height:1.1}
+.kpi .unit{font-size:12px;color:var(--muted);margin-left:3px}
+.kpi.pres{background:var(--pres-soft);border-color:#F9A8D4}
+.kpi.pres .label,.kpi.pres .val{color:var(--pres)}
+.kpi.accent{background:#DCFCE7;border-color:#86EFAC}
+.kpi.accent .label,.kpi.accent .val{color:#15803D}
+
+.grid{display:grid;grid-template-columns:1.4fr 1fr;gap:14px;margin-bottom:14px}
+@media (max-width:980px){.grid{grid-template-columns:1fr}}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+@media (max-width:980px){.grid-2{grid-template-columns:1fr}}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;box-shadow:0 1px 2px rgba(15,30,55,.04)}
+.panel h2{font-size:13px;margin:0 0 12px;color:var(--navy);font-weight:700;display:flex;align-items:center;gap:8px}
+.panel h2::before{content:"";display:inline-block;width:3px;height:13px;background:var(--navy);border-radius:2px}
+.chart-wrap{position:relative;height:260px}
+
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th,td{padding:8px 9px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th:first-child,td:first-child,td.left,th.left{text-align:left}
+thead th{background:var(--navy);color:#fff;font-weight:600;border-bottom:none;font-size:11.5px}
+thead th:first-child{border-top-left-radius:6px} thead th:last-child{border-top-right-radius:6px}
+tbody tr:nth-child(odd){background:#FAFBFD}
+tbody tr:hover{background:#F1F6FB;cursor:pointer}
+tfoot td{font-weight:700;background:#F4F7FB;border-top:2px solid var(--navy);color:var(--navy)}
+.pres-cell{background:var(--pres-soft);color:var(--pres);font-weight:700}
+.pres-cell-soft{background:var(--pres-soft)}
+
+.chip{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;background:#EAF1FA;color:var(--navy)}
+.chip.ok{background:#DCFCE7;color:#15803D}
+.chip.ng{background:#FEE2E2;color:#9D174D}
+.chip.warn{background:#FEF3C7;color:#92400E}
+.chip.pres{background:var(--pres-soft);color:var(--pres);font-weight:700}
+.chip.service{background:#E0E7FF;color:#3730A3}
+.chip.position{background:#EAF1FA;color:#1F4E78}
+
+.avatar{width:26px;height:26px;border-radius:50%;background:var(--navy);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;margin-right:6px;vertical-align:middle}
+
+.alert-box{background:#FEE2E2;border:1px solid #FCA5A5;color:#9D174D;border-radius:8px;padding:10px 12px;font-size:12px;margin:6px 0}
+.alert-box::before{content:"⚠ ";font-weight:700}
+.info-box{background:#EAF1FA;border:1px solid #9BB7D4;color:var(--navy);border-radius:8px;padding:10px 12px;font-size:12px;margin:6px 0}
+.success-box{background:#DCFCE7;border:1px solid #86EFAC;color:#15803D;border-radius:8px;padding:10px 12px;font-size:12px;margin:6px 0}
+
+.search-bar{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center}
+.search-bar input,.search-bar select{padding:6px 10px;border:1px solid var(--line);border-radius:6px;font:inherit;font-size:12px}
+.search-bar input{flex:1;min-width:160px}
+
+.btn{padding:8px 16px;border:none;border-radius:8px;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
+.btn.primary{background:var(--navy);color:#fff}
+.btn.primary:hover{background:var(--navy-soft)}
+.btn.secondary{background:#fff;color:var(--navy);border:1px solid var(--navy)}
+.btn.danger{background:#FEE2E2;color:#9D174D;border:1px solid #FCA5A5}
+.btn.success{background:#DCFCE7;color:#15803D;border:1px solid #86EFAC}
+.btn.sm{padding:5px 10px;font-size:11px}
+
+/* ===== Modal ===== */
+.modal-overlay{position:fixed;inset:0;background:rgba(15,30,55,.5);display:none;align-items:flex-start;justify-content:center;z-index:100;padding:20px;overflow-y:auto}
+.modal-overlay.show{display:flex}
+.modal{background:#fff;border-radius:14px;width:min(720px,100%);box-shadow:0 16px 50px rgba(0,0,0,.3);margin:auto}
+.modal-header{padding:18px 20px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
+.modal-header h2{margin:0;color:var(--navy);font-size:17px}
+.modal-header .close{background:transparent;border:none;font-size:22px;cursor:pointer;color:var(--muted);padding:0;width:30px;height:30px;line-height:1}
+.modal-body{padding:18px 20px;max-height:78vh;overflow-y:auto}
+
+.form-row{display:grid;grid-template-columns:130px 1fr;gap:10px;align-items:start;margin-bottom:10px}
+@media (max-width:560px){.form-row{grid-template-columns:1fr}}
+.form-row label{font-size:13px;font-weight:600;color:var(--navy);padding-top:8px}
+.form-row label .req{color:var(--warn);margin-left:3px}
+.form-row label .hint{display:block;font-size:10px;color:var(--muted);font-weight:500;margin-top:2px}
+.form-row input,.form-row select,.form-row textarea{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;font-size:13.5px;background:#fff}
+.form-row textarea{resize:vertical;min-height:60px}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip-btn{padding:7px 14px;border:1.5px solid var(--line);background:#fff;border-radius:999px;font:inherit;font-size:12.5px;cursor:pointer;color:var(--text);font-weight:500}
+.chip-btn.active{background:var(--navy);color:#fff;border-color:var(--navy)}
+.chip-btn.ok.active{background:#15803D;border-color:#15803D}
+.chip-btn.ng.active{background:#9D174D;border-color:#9D174D}
+.chip-btn.warn.active{background:#92400E;border-color:#92400E}
+.check-row{display:flex;gap:14px;align-items:center;padding-top:6px;flex-wrap:wrap}
+.check-row label{font-weight:500;color:var(--text);font-size:13px;display:flex;align-items:center;gap:6px;cursor:pointer}
+.check-row input[type=checkbox]{width:18px;height:18px;accent-color:var(--pres)}
+.modal-footer{padding:14px 20px;border-top:1px solid var(--line);display:flex;gap:8px;justify-content:flex-end}
+
+.toast{position:fixed;bottom:20px;right:20px;background:#15803D;color:#fff;padding:14px 22px;border-radius:10px;font-weight:700;box-shadow:0 8px 24px rgba(0,0,0,.2);opacity:0;pointer-events:none;transition:opacity .25s;z-index:200}
+.toast.show{opacity:1}
+.toast.err{background:#9D174D}
+
+.dup-alert{background:#FEE2E2;border:1px solid #FCA5A5;color:#9D174D;padding:8px 12px;border-radius:6px;font-size:12px;margin-top:6px;display:none}
+.dup-alert.show{display:block}
+.dup-alert::before{content:"⚠ ";font-weight:700}
+
+.photo-stub{border:2px dashed var(--line);border-radius:8px;padding:14px;text-align:center;font-size:12px;color:var(--muted);background:#FAFBFD;cursor:pointer}
+.photo-stub:hover{border-color:var(--navy-soft);color:var(--navy)}
+
+.event-link,.staff-link{color:var(--navy);font-weight:700;cursor:pointer;text-decoration:underline}
+.locked{color:var(--muted);font-style:italic;font-size:11px}
+
+footer{margin-top:24px;padding:14px;font-size:11px;color:var(--muted);text-align:center}
+
+.import-zone{border:2px dashed var(--navy);background:#EAF1FA;border-radius:10px;padding:20px;text-align:center;color:var(--navy);font-size:13px;cursor:pointer;margin:10px 0}
+.import-zone:hover{background:#D9E1F2}
+</style>
+</head>
+<body>
+
+<!-- ============ Login ============ -->
+<div class="login-screen" id="loginScreen">
+  <div class="login-box">
+    <h1>🎪 イベント名刺管理</h1>
+    <div class="sub">v1.0 / ログインしてください</div>
+    <label>担当者名</label>
+    <select id="loginStaff">
+      <option>柴田</option><option>三五</option><option>鈴木H</option><option>誠英</option>
+      <option>森本</option><option>加藤</option><option>大橋</option><option>増田</option>
+      <option>福井</option><option>豊泉</option><option>小栗</option><option>森</option>
+      <option>桜井</option><option>狩野</option><option>船越</option>
+    </select>
+    <label>権限</label>
+    <select id="loginRole"><option value="staff">一般スタッフ</option><option value="admin">管理者（山北/豊泉）</option></select>
+    <button onclick="login()">ログイン</button>
+    <div class="sub" style="margin-top:14px;font-size:11px;text-align:center">※プロトタイプ：認証は形式のみ。実装時はAuth0等に差し替え</div>
+  </div>
+</div>
+
+<!-- ============ Top bar ============ -->
+<div class="topbar" id="topbar" style="display:none">
+  <div class="brand">🎪 イベント名刺管理 <span class="badge">v1.0</span></div>
+  <button class="btn primary sm" onclick="openForm()">＋ 名刺を登録</button>
+  <div class="user">
+    <span id="userName">柴田</span><span class="role" id="userRole">一般</span>
+    <button class="logout" onclick="logout()">ログアウト</button>
+  </div>
+</div>
+
+<div class="page" id="appBody" style="display:none">
+
+  <div class="tabs" id="tabs">
+    <button class="tab active" data-tab="overview">📊 全体</button>
+    <button class="tab" data-tab="staff">👥 スタッフ別</button>
+    <button class="tab" data-tab="event">🎪 イベント別</button>
+    <button class="tab" data-tab="records">📇 名刺レコード</button>
+    <button class="tab special" data-tab="admin">⚙ 管理 / 移行</button>
+  </div>
+
+  <!-- ============ 全体 ============ -->
+  <section class="section active" id="sec-overview">
+    <div class="kpis" id="overviewKpis"></div>
+    <div class="grid">
+      <div class="panel"><h2>月別 名刺取得数</h2><div class="chart-wrap"><canvas id="chartMonthly"></canvas></div></div>
+      <div class="panel"><h2>サービス種別 構成</h2><div class="chart-wrap"><canvas id="chartService"></canvas></div></div>
+    </div>
+    <div class="grid-2">
+      <div class="panel"><h2>イベント別 名刺数ランキング</h2><div class="chart-wrap"><canvas id="chartEventRank"></canvas></div></div>
+      <div class="panel"><h2>ポジション別 構成</h2><div class="chart-wrap"><canvas id="chartPosition"></canvas></div></div>
+    </div>
+    <div class="panel">
+      <h2>イベント一覧</h2>
+      <div style="overflow-x:auto"><table id="tblEvents">
+        <thead><tr><th class="left">コード</th><th class="left">開催日</th><th class="left">イベント名</th>
+          <th>名刺数</th><th class="pres-cell-soft">社長</th><th>アポ◯</th><th>商談化</th><th>追い中</th><th>成約合計</th></tr></thead>
+        <tbody></tbody></table></div>
+    </div>
+  </section>
+
+  <!-- ============ スタッフ別 ============ -->
+  <section class="section" id="sec-staff">
+    <div class="kpis" id="staffKpis"></div>
+    <div class="grid">
+      <div class="panel"><h2>スタッフ別 名刺数 / 社長 / アポ◯</h2><div class="chart-wrap" style="height:340px"><canvas id="chartStaffBar"></canvas></div></div>
+      <div class="panel"><h2>スタッフ別 成約合計</h2><div class="chart-wrap" style="height:340px"><canvas id="chartStaffSales"></canvas></div></div>
+    </div>
+    <div class="panel">
+      <h2>スタッフ一覧</h2>
+      <div style="overflow-x:auto"><table id="tblStaff">
+        <thead><tr><th class="left">スタッフ</th><th>出務</th><th>名刺</th>
+          <th class="pres-cell-soft">社長</th><th class="pres-cell-soft">社長率</th>
+          <th>アポ◯</th><th>商談化</th><th>追い中</th><th>成約合計</th></tr></thead>
+        <tbody></tbody><tfoot><tr id="staffTfoot"></tr></tfoot></table></div>
+    </div>
+    <div class="panel" style="margin-top:14px">
+      <h2 id="personalTitle">個人詳細</h2>
+      <div id="personalContent"></div>
+    </div>
+  </section>
+
+  <!-- ============ イベント別 ============ -->
+  <section class="section" id="sec-event">
+    <div class="panel" style="margin-bottom:14px">
+      <h2>イベント選択</h2>
+      <div style="display:flex;gap:6px;flex-wrap:wrap" id="eventSelector"></div>
+    </div>
+    <div class="panel" style="margin-bottom:14px">
+      <h2 id="eventTitle">イベント選択してください</h2>
+      <div id="eventMeta" style="font-size:12px;color:var(--muted);margin-bottom:10px"></div>
+      <div class="kpis" id="eventKpis"></div>
+    </div>
+    <div class="grid">
+      <div class="panel"><h2>このイベントの出務スタッフ</h2>
+        <div style="overflow-x:auto"><table id="tblEventStaff">
+          <thead><tr><th class="left">スタッフ</th><th>名刺</th><th class="pres-cell-soft">社長</th>
+            <th>アポ◯</th><th>商談化</th><th>成約</th></tr></thead><tbody></tbody></table></div></div>
+      <div class="panel"><h2>このイベントのポジション分布</h2><div class="chart-wrap"><canvas id="chartEventPos"></canvas></div></div>
+    </div>
+    <div class="panel"><h2>このイベントの名刺レコード</h2>
+      <div style="overflow-x:auto"><table id="tblEventCards">
+        <thead><tr><th class="left">担当</th><th class="left">会社</th><th class="left">役職</th><th class="left">氏名</th>
+          <th class="left">ポジ</th><th class="left">アポ</th><th>商談化</th><th class="pres-cell-soft">社長</th>
+          <th class="left">成約</th><th class="left">サービス</th></tr></thead><tbody></tbody></table></div></div>
+    <div class="panel" style="margin-top:14px"><h2>このイベント関連のかぶり</h2><div id="eventDupes"></div></div>
+  </section>
+
+  <!-- ============ 名刺レコード ============ -->
+  <section class="section" id="sec-records">
+    <div class="panel">
+      <h2>全名刺レコード</h2>
+      <div class="search-bar">
+        <input id="searchInput" type="search" placeholder="🔍 会社・氏名・備考で検索">
+        <select id="filterEvent"><option value="">全イベント</option></select>
+        <select id="filterStaff"><option value="">全スタッフ</option></select>
+        <select id="filterAppt"><option value="">全アポ状態</option><option>◯</option><option>×</option><option>追い中</option></select>
+        <select id="filterPos"><option value="">全ポジション</option><option>ブース</option><option>外回り</option><option>その他</option></select>
+        <select id="filterPres"><option value="">役職フラグ：全て</option><option value="1">社長のみ</option></select>
+        <button class="btn secondary sm" onclick="exportCSV()">📥 CSV出力</button>
+      </div>
+      <div style="overflow-x:auto"><table id="tblRecords">
+        <thead><tr><th class="left">イベント</th><th class="left admin-only">担当</th><th class="left">会社名</th>
+          <th class="left">役職</th><th class="left">氏名</th><th class="left">県</th>
+          <th class="left">交換日時</th><th class="left">アポ</th><th>商談化</th><th class="left">ポジ</th>
+          <th class="pres-cell-soft">社長</th><th>成約</th><th class="left">サービス</th><th></th></tr></thead>
+        <tbody></tbody></table></div>
+      <div class="sub" id="recordCount"></div>
+    </div>
+  </section>
+
+  <!-- ============ 管理 / 移行 ============ -->
+  <section class="section" id="sec-admin">
+    <div class="panel">
+      <h2>📥 過去スプシ移行（CSV取り込み）</h2>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:8px">
+        既存スプシの「個人シート」をCSVに保存して取り込み。フォーマット：<br>
+        <code>イベントコード,担当,会社名,役職,氏名,都道府県,備考,アポ,ポジション,アポカウンター,社長,担当,成約額,サービス</code>
+      </p>
+      <label class="import-zone" for="csvFile">📁 CSVファイルを選択<br><small>または このエリアにドラッグ＆ドロップ</small></label>
+      <input type="file" id="csvFile" accept=".csv" style="display:none">
+      <div id="importPreview"></div>
+    </div>
+
+    <div class="panel" style="margin-top:14px">
+      <h2>📅 新規イベント実施時のフロー</h2>
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin:8px 0">
+        <div style="background:#EAF1FA;border:1px solid #9BB7D4;border-radius:8px;padding:10px;text-align:center;font-size:11px">
+          <div style="font-weight:700;color:#1F4E78;font-size:13px">①事前</div>
+          <div style="margin-top:4px">新イベント決定<br>↓<br><b>イベント追加</b><br>(下のフォーム)</div>
+        </div>
+        <div style="background:#DCFCE7;border:1px solid #86EFAC;border-radius:8px;padding:10px;text-align:center;font-size:11px">
+          <div style="font-weight:700;color:#15803D;font-size:13px">②当日</div>
+          <div style="margin-top:4px">スタッフが<br><b>「＋名刺登録」</b><br>連続登録モードで<br>どんどん入力</div>
+        </div>
+        <div style="background:#FEF3C7;border:1px solid #F5D08A;border-radius:8px;padding:10px;text-align:center;font-size:11px">
+          <div style="font-weight:700;color:#92400E;font-size:13px">③当日夜</div>
+          <div style="margin-top:4px">未入力分を補完<br>役職・社長フラグ<br>アポ状態の確定</div>
+        </div>
+        <div style="background:#FCE7F3;border:1px solid #F9A8D4;border-radius:8px;padding:10px;text-align:center;font-size:11px">
+          <div style="font-weight:700;color:#9D174D;font-size:13px">④翌日〜1週間</div>
+          <div style="margin-top:4px">テレアポ実施<br><b>アポカウンター<br>± で更新</b><br>商談化を追う</div>
+        </div>
+        <div style="background:#F4F6FA;border:1px solid #E3E8F0;border-radius:8px;padding:10px;text-align:center;font-size:11px">
+          <div style="font-weight:700;color:#1B2733;font-size:13px">⑤1週間後</div>
+          <div style="margin-top:4px">追客権利消滅<br>自由化<br>受注時は<br><b>成約額入力</b></div>
+        </div>
+      </div>
+      <div class="info-box" style="margin-top:10px">
+        💡 重複（かぶり）検知は<b>名刺登録時にリアルタイム</b>で動作。1週間以内の同会社は赤バナーで警告 → 役職上位/入力早い方が優先、判断は山北さん。
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top:14px">
+      <h2>📅 イベント一覧 / 追加</h2>
+      <p style="font-size:12px;color:var(--muted)">新規イベントを登録できます。コード形式：EV-YYYY-MMDD</p>
+      <div class="search-bar">
+        <input id="newEventCode" placeholder="EV-2026-0701" style="max-width:160px">
+        <input id="newEventName" placeholder="イベント名" style="max-width:240px">
+        <input id="newEventDate" type="date" style="max-width:160px">
+        <button class="btn primary sm" onclick="addEvent()">＋ 追加</button>
+      </div>
+      <div style="overflow-x:auto;margin-top:10px"><table id="tblEventAdmin">
+        <thead><tr><th class="left">コード</th><th class="left">開催日</th><th class="left">名前</th><th>名刺数</th><th></th></tr></thead>
+        <tbody></tbody></table></div>
+    </div>
+
+    <div class="panel" style="margin-top:14px">
+      <h2>🛠 データメンテナンス</h2>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn success" onclick="loadSampleData()">🎲 サンプルデータ投入</button>
+        <button class="btn secondary" onclick="exportAllJSON()">💾 全データJSONエクスポート</button>
+        <button class="btn secondary" onclick="document.getElementById('jsonFile').click()">📤 JSON取り込み</button>
+        <input type="file" id="jsonFile" accept=".json" style="display:none">
+        <button class="btn danger" onclick="wipeAll()">⚠ 全データ消去</button>
+      </div>
+      <div class="info-box" style="margin-top:10px">
+        現在の保存件数：<b id="dataCount">0</b> 名刺、<b id="eventDataCount">0</b> イベント　／　ストレージ：LocalStorage
+      </div>
+    </div>
+  </section>
+
+  <footer>イベント名刺管理アプリ v1.0 ｜ 仕様書 v6準拠 ｜ LocalStorage動作（実装時はAPI接続）</footer>
+</div>
+
+<!-- ============ Modal: 名刺登録フォーム ============ -->
+<div class="modal-overlay" id="formModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="formTitle">📝 名刺を登録</h2>
+      <button class="close" onclick="closeForm()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="info-box">
+        🎪 <b id="formEvent"></b>　／　👤 担当：<b id="formStaff"></b>
+      </div>
+
+      <div class="form-row">
+        <label>📷 名刺撮影 <span class="hint">OCRで自動入力（モック）</span></label>
+        <div class="photo-stub" onclick="mockOCR()">📷 タップして撮影</div>
+      </div>
+
+      <div class="form-row">
+        <label>イベント <span class="req">*</span></label>
+        <select id="f_event"></select>
+      </div>
+
+      <div class="form-row">
+        <label>会社名 <span class="req">*</span></label>
+        <div>
+          <input id="f_company" type="text" placeholder="株式会社○○建設" oninput="checkDup()">
+          <div class="dup-alert" id="dupAlert"></div>
+        </div>
+      </div>
+
+      <div class="form-row"><label>役職</label><input id="f_title" type="text" placeholder="取締役"></div>
+      <div class="form-row"><label>氏名</label><input id="f_person" type="text" placeholder="田中 太郎"></div>
+
+      <div class="form-row">
+        <label>都道府県</label>
+        <select id="f_pref">
+          <option value="">選択</option>
+          <option>北海道</option><option>東京</option><option>神奈川</option><option>千葉</option><option>埼玉</option>
+          <option>愛知</option><option>大阪</option><option>京都</option><option>兵庫</option><option>広島</option>
+          <option>福岡</option><option>その他</option>
+        </select>
+      </div>
+
+      <div class="form-row">
+        <label>交換日時</label>
+        <div style="display:flex;gap:6px"><input id="f_date" type="date"><input id="f_time" type="time"></div>
+      </div>
+
+      <div class="form-row">
+        <label>アポ状態 <span class="req">*</span></label>
+        <div class="chips" id="apptChips">
+          <button class="chip-btn ok" data-val="◯" onclick="pickChip(this,'appt')">◯ 取れた</button>
+          <button class="chip-btn ng" data-val="×" onclick="pickChip(this,'appt')">× ダメ</button>
+          <button class="chip-btn warn" data-val="追い中" onclick="pickChip(this,'appt')">追い中</button>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <label>ポジション</label>
+        <div class="chips" id="posChips">
+          <button class="chip-btn" data-val="ブース" onclick="pickChip(this,'pos')">ブース</button>
+          <button class="chip-btn" data-val="外回り" onclick="pickChip(this,'pos')">外回り</button>
+          <button class="chip-btn" data-val="その他" onclick="pickChip(this,'pos')">その他</button>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <label>役職フラグ</label>
+        <div class="check-row">
+          <label><input type="checkbox" id="f_isPres"> 👑 <b style="color:var(--pres)">社長</b></label>
+          <label><input type="checkbox" id="f_isMember" checked> 担当</label>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <label>アポカウンター <span class="hint">テレアポで取れた商談</span></label>
+        <div style="display:flex;align-items:center;gap:8px">
+          <button type="button" class="chip-btn" onclick="incCounter(-1)">−</button>
+          <input id="f_counter" type="number" min="0" value="0" style="width:80px;text-align:center">
+          <button type="button" class="chip-btn" onclick="incCounter(1)">＋</button>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <label>成約 / 売上額</label>
+        <div style="display:flex;align-items:center;gap:4px"><span>¥</span><input id="f_sales" type="number" placeholder="0" min="0"></div>
+      </div>
+
+      <div class="form-row">
+        <label>サービス種別</label>
+        <div class="chips" id="svcChips">
+          <button class="chip-btn" data-val="HH" onclick="pickChip(this,'svc')">HH</button>
+          <button class="chip-btn" data-val="HM" onclick="pickChip(this,'svc')">HM</button>
+          <button class="chip-btn" data-val="KH" onclick="pickChip(this,'svc')">KH</button>
+          <button class="chip-btn" data-val="その他" onclick="pickChip(this,'svc')">その他</button>
+        </div>
+      </div>
+
+      <div class="form-row"><label>備考</label><textarea id="f_memo" placeholder="話した内容・気づき"></textarea></div>
+    </div>
+    <div class="modal-footer" style="flex-direction:column;align-items:stretch;gap:8px">
+      <div id="sessionSaved" style="display:none;background:#DCFCE7;border:1px solid #86EFAC;border-radius:8px;padding:8px 12px;font-size:11.5px;color:#15803D;max-height:120px;overflow-y:auto">
+        <b>このセッションで登録済み（<span id="sessionCount">0</span>件）：</b>
+        <div id="sessionList" style="margin-top:4px"></div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;align-items:center">
+        <label style="font-size:11.5px;color:var(--muted);margin-right:auto;cursor:pointer">
+          <input type="checkbox" id="continueMode" checked style="vertical-align:middle"> 続けて登録（モーダル開いたまま）
+        </label>
+        <button class="btn secondary" onclick="closeForm()">閉じる</button>
+        <button class="btn primary" id="saveBtn" onclick="saveForm()">💾 登録</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// =========================================================
+// STORAGE
+// =========================================================
+const K_DATA = "meishi_app_v1_data";
+const K_EVENTS = "meishi_app_v1_events";
+const K_USER = "meishi_app_v1_user";
+
+function loadData(){ return JSON.parse(localStorage.getItem(K_DATA)||"[]"); }
+function saveData(d){ localStorage.setItem(K_DATA, JSON.stringify(d)); }
+function loadEvents(){
+  return JSON.parse(localStorage.getItem(K_EVENTS)||JSON.stringify({
+    "EV-2025-1210":{name:"Japan BUILD 2025",date:"2025-12-10"},
+    "EV-2025-0730":{name:"産業DX Expo",date:"2025-07-30"},
+  }));
+}
+function saveEvents(e){ localStorage.setItem(K_EVENTS, JSON.stringify(e)); }
+
+let DATA = loadData();
+let EVENTS = loadEvents();
+let USER = JSON.parse(localStorage.getItem(K_USER)||"null");
+let editingId = null;
+
+// =========================================================
+// LOGIN
+// =========================================================
+function login(){
+  const staff = document.getElementById("loginStaff").value;
+  const role = document.getElementById("loginRole").value;
+  USER = {staff,role,loginAt:new Date().toISOString()};
+  localStorage.setItem(K_USER, JSON.stringify(USER));
+  showApp();
+}
+function logout(){
+  if(!confirm("ログアウトしますか？")) return;
+  localStorage.removeItem(K_USER); USER = null;
+  document.getElementById("loginScreen").style.display="flex";
+  document.getElementById("topbar").style.display="none";
+  document.getElementById("appBody").style.display="none";
+}
+function showApp(){
+  document.getElementById("loginScreen").style.display="none";
+  document.getElementById("topbar").style.display="flex";
+  document.getElementById("appBody").style.display="block";
+  document.getElementById("userName").textContent = USER.staff;
+  document.getElementById("userRole").textContent = USER.role==="admin"?"管理者":"一般";
+  document.getElementById("userRole").className = "role"+(USER.role==="admin"?" admin":"");
+  // Hide admin tab from non-admins
+  const adminTab = document.querySelector('[data-tab="admin"]');
+  adminTab.style.display = USER.role==="admin" ? "" : "none";
+  // hide records tab content company names if not admin? Keep for now but masking applied in render
+  renderAll();
+}
+
+// =========================================================
+// TABS
+// =========================================================
+document.querySelectorAll("#tabs .tab").forEach(btn=>{
+  btn.addEventListener("click",()=>{
+    document.querySelectorAll("#tabs .tab").forEach(b=>b.classList.remove("active"));
+    btn.classList.add("active");
+    document.querySelectorAll(".section").forEach(s=>s.classList.remove("active"));
+    document.getElementById("sec-"+btn.dataset.tab).classList.add("active");
+  });
+});
+
+// =========================================================
+// FORM
+// =========================================================
+const formState = {appt:"",pos:"",svc:""};
+function openForm(id){
+  editingId = id || null;
+  document.getElementById("formTitle").textContent = id ? "✏ 名刺を編集" : "📝 名刺を登録";
+  document.getElementById("formModal").classList.add("show");
+  const evSel = document.getElementById("f_event");
+  evSel.innerHTML = Object.entries(EVENTS).map(([c,e])=>`<option value="${c}">${c} ${e.name}</option>`).join("");
+  document.getElementById("formStaff").textContent = USER.staff;
+  document.getElementById("formEvent").textContent = evSel.value;
+  evSel.onchange = ()=>document.getElementById("formEvent").textContent = evSel.value;
+
+  if(id){
+    const r = DATA.find(d=>d.id===id);
+    if(!r) return;
+    evSel.value = r.event;
+    document.getElementById("f_company").value = r.company;
+    document.getElementById("f_title").value = r.title||"";
+    document.getElementById("f_person").value = r.person||"";
+    document.getElementById("f_pref").value = r.pref||"";
+    if(r.dt){ const [d,t] = r.dt.split(" "); document.getElementById("f_date").value=d; document.getElementById("f_time").value=t||""; }
+    document.getElementById("f_isPres").checked = !!r.isPres;
+    document.getElementById("f_isMember").checked = !!r.isMember;
+    document.getElementById("f_counter").value = r.counter||0;
+    document.getElementById("f_sales").value = r.sales||"";
+    document.getElementById("f_memo").value = r.memo||"";
+    setChip("appt",r.appt); setChip("pos",r.pos); setChip("svc",r.service);
+  } else {
+    clearFormFields();
+  }
+}
+function setChip(key,val){
+  formState[key]=val||"";
+  document.querySelectorAll(`#${key==="svc"?"svcChips":key==="pos"?"posChips":"apptChips"} .chip-btn`).forEach(b=>{
+    b.classList.toggle("active", b.dataset.val===val);
+  });
+}
+function closeForm(){
+  document.getElementById("formModal").classList.remove("show");
+  editingId = null;
+  sessionRecs = [];
+  const wrap = document.getElementById("sessionSaved"); if(wrap) wrap.style.display="none";
+}
+function clearFormFields(){
+  ["f_company","f_title","f_person","f_memo","f_sales"].forEach(id=>document.getElementById(id).value="");
+  document.getElementById("f_pref").value="";
+  document.getElementById("f_counter").value="0";
+  document.getElementById("f_isPres").checked=false;
+  document.getElementById("f_isMember").checked=true;
+  const now=new Date();
+  document.getElementById("f_date").value=now.toISOString().slice(0,10);
+  document.getElementById("f_time").value=now.toTimeString().slice(0,5);
+  setChip("appt",""); setChip("pos",""); setChip("svc","");
+  document.getElementById("dupAlert").classList.remove("show");
+}
+function pickChip(el,key){
+  el.parentElement.querySelectorAll(".chip-btn").forEach(b=>b.classList.remove("active"));
+  el.classList.add("active");
+  formState[key]=el.dataset.val;
+}
+function incCounter(d){ const el=document.getElementById("f_counter"); el.value=Math.max(0,(Number(el.value)||0)+d); }
+function mockOCR(){
+  document.getElementById("f_company").value="株式会社○○建設";
+  document.getElementById("f_title").value="取締役";
+  document.getElementById("f_person").value="田中 太郎";
+  document.getElementById("f_pref").value="東京";
+  checkDup();
+  showToast("📷 OCR完了（モック）");
+}
+function checkDup(){
+  const v = document.getElementById("f_company").value.trim();
+  const alert = document.getElementById("dupAlert");
+  if(!v){ alert.classList.remove("show"); return; }
+  const normalize = s=>s.replace(/^(株式会社|\(株\)|㈱)|\s+/g,"");
+  const nv = normalize(v);
+  const hits = DATA.filter(d=>{
+    const nd = normalize(d.company);
+    return nd && (nd===nv || nd.includes(nv) || nv.includes(nd));
+  });
+  if(hits.length){
+    alert.innerHTML = hits.slice(0,3).map(h=>{
+      const days = Math.floor((Date.now()-new Date(h.dt.replace(" ","T")).getTime())/86400000);
+      const rule = days>7 ? "ブロック終了（追客可）" : `あと${Math.max(0,7-days)}日でブロック解除`;
+      return `<b>${h.company}</b>：${h.staff}（${h.event}, ${days}日前）／ ${rule}`;
+    }).join("<br>");
+    alert.classList.add("show");
+  } else {
+    alert.classList.remove("show");
+  }
+}
+let sessionRecs = [];  // モーダルを開いてから登録した名刺の累積
+function saveForm(){
+  const company = document.getElementById("f_company").value.trim();
+  if(!company){ showToast("会社名を入力してください","err"); return; }
+  if(!formState.appt){ showToast("アポ状態を選択してください","err"); return; }
+  const rec = {
+    id: editingId || Date.now()+Math.floor(Math.random()*1000),
+    event: document.getElementById("f_event").value,
+    staff: USER.staff,
+    company, title:document.getElementById("f_title").value,
+    person:document.getElementById("f_person").value, pref:document.getElementById("f_pref").value,
+    dt:document.getElementById("f_date").value+" "+document.getElementById("f_time").value,
+    appt:formState.appt, pos:formState.pos,
+    isPres:document.getElementById("f_isPres").checked?1:0,
+    isMember:document.getElementById("f_isMember").checked?1:0,
+    counter:Number(document.getElementById("f_counter").value)||0,
+    sales:Number(document.getElementById("f_sales").value)||0,
+    service:formState.svc, memo:document.getElementById("f_memo").value,
+    updatedAt:new Date().toISOString(),
+  };
+  if(editingId){
+    DATA = DATA.map(d=>d.id===editingId?rec:d);
+    saveData(DATA); renderAll();
+    showToast("✓ 更新しました");
+    closeForm();
+    return;
+  }
+  DATA.unshift(rec);
+  saveData(DATA);
+  sessionRecs.unshift(rec);
+  updateSessionList();
+  renderAll();
+
+  const continueMode = document.getElementById("continueMode").checked;
+  if(continueMode){
+    // 名刺固有のフィールドだけクリア（イベント・日時・ポジションは保持）
+    showToast(`✓ 登録：${company}（連続 ${sessionRecs.length}枚目）`);
+    clearFormFieldsForNext();
+    document.getElementById("f_company").focus();
+  } else {
+    showToast("✓ 登録しました");
+    closeForm();
+  }
+}
+function clearFormFieldsForNext(){
+  // 会社・役職・氏名・備考・成約 はクリア、ほかは継続
+  ["f_company","f_title","f_person","f_memo","f_sales"].forEach(id=>document.getElementById(id).value="");
+  document.getElementById("f_pref").value="";
+  document.getElementById("f_counter").value="0";
+  document.getElementById("f_isPres").checked=false;
+  document.getElementById("f_isMember").checked=true;
+  setChip("appt","");
+  // pos と svc は保持（同じブースで連続登録するケースが多いため）
+  document.getElementById("dupAlert").classList.remove("show");
+}
+function updateSessionList(){
+  const wrap = document.getElementById("sessionSaved");
+  const list = document.getElementById("sessionList");
+  const cnt = document.getElementById("sessionCount");
+  if(!sessionRecs.length){ wrap.style.display="none"; return; }
+  wrap.style.display="block";
+  cnt.textContent = sessionRecs.length;
+  list.innerHTML = sessionRecs.slice(0,8).map(r=>{
+    const tags = [
+      r.isPres?'<span class="chip pres" style="font-size:9px">社長</span>':'',
+      r.appt?`<span class="chip ${r.appt==="◯"?"ok":r.appt==="×"?"ng":"warn"}" style="font-size:9px">${r.appt}</span>`:'',
+      r.pos?`<span class="chip position" style="font-size:9px">${r.pos}</span>`:'',
+    ].filter(Boolean).join(" ");
+    return `<div style="padding:2px 0">• <b>${r.company}</b> ${r.person?`(${r.person})`:""} ${tags}</div>`;
+  }).join("") + (sessionRecs.length>8?`<div style="color:var(--muted);font-size:10px">…他 ${sessionRecs.length-8} 件</div>`:"");
+}
+
+function deleteRecord(id){
+  if(!confirm("この名刺レコードを削除しますか？")) return;
+  DATA = DATA.filter(d=>d.id!==id);
+  saveData(DATA); renderAll();
+  showToast("✓ 削除しました");
+}
+
+// =========================================================
+// RENDERING
+// =========================================================
+const fmtYen = v => v ? "¥" + v.toLocaleString() : "—";
+const fmtYenShort = v => !v ? "—" : v>=1000000 ? "¥"+(v/1000000).toFixed(2)+"M" : "¥"+(v/10000).toFixed(0)+"万";
+const fmtNum = v => v.toLocaleString();
+const initials = n => n.slice(0,1);
+const maskCompany = (c,r) => (USER.role==="admin"||r.staff===USER.staff) ? c : "○○○○（権限なし）";
+
+let charts = {};
+function destroyChart(k){ if(charts[k]){ charts[k].destroy(); delete charts[k]; } }
+
+function renderAll(){
+  renderOverview(); renderStaff(); renderEventSelector(); renderRecords(); renderAdmin();
+  document.getElementById("dataCount").textContent = DATA.length;
+  document.getElementById("eventDataCount").textContent = Object.keys(EVENTS).length;
+}
+
+// ========== OVERVIEW ==========
+function renderOverview(){
+  const total = DATA.length;
+  const pres = DATA.filter(m=>m.isPres).length;
+  const appt = DATA.filter(m=>m.appt==="◯").length;
+  const chasing = DATA.filter(m=>m.appt==="追い中").length;
+  const sales = DATA.reduce((a,m)=>a+(m.sales||0),0);
+  const counter = DATA.reduce((a,m)=>a+(m.counter||0),0);
+  const evCount = Object.keys(EVENTS).length;
+  const presRate = total ? Math.round(pres/total*100) : 0;
+
+  document.getElementById("overviewKpis").innerHTML = [
+    {l:"イベント数",val:fmtNum(evCount),u:"件"},
+    {l:"名刺総数",val:fmtNum(total),u:"枚"},
+    {l:"社長",val:`${pres} (${presRate}%)`,cls:"pres"},
+    {l:"アポ◯（即）",val:fmtNum(appt),u:"件"},
+    {l:"商談化アポ（後）",val:fmtNum(counter),u:"件"},
+    {l:"成約合計",val:fmtYenShort(sales),cls:"accent"},
+  ].map(k=>`<div class="kpi ${k.cls||''}"><div class="label">${k.l}</div><div class="val">${k.val}<span class="unit">${k.u||''}</span></div></div>`).join("");
+
+  if(!total){ ["chartMonthly","chartService","chartEventRank","chartPosition"].forEach(destroyChart); document.querySelector("#tblEvents tbody").innerHTML=""; return; }
+
+  // Monthly
+  const months={};
+  DATA.forEach(m=>{const k=(m.dt||"").slice(0,7).replace("/","-"); if(k) months[k]=(months[k]||0)+1;});
+  const mLabels = Object.keys(months).sort();
+  destroyChart("chartMonthly");
+  charts.chartMonthly = new Chart(document.getElementById("chartMonthly"),{
+    type:"line",
+    data:{labels:mLabels,datasets:[{label:"名刺数",data:mLabels.map(k=>months[k]),
+      borderColor:"#1F4E78",backgroundColor:"rgba(31,78,120,.15)",fill:true,tension:.3,pointRadius:4}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{y:{grid:{color:"#EEF2F7"},beginAtZero:true}}}
+  });
+
+  // Service
+  const svc={};
+  DATA.forEach(m=>{const k=m.service||"(未設定)"; svc[k]=(svc[k]||0)+1;});
+  destroyChart("chartService");
+  charts.chartService = new Chart(document.getElementById("chartService"),{
+    type:"doughnut",
+    data:{labels:Object.keys(svc),datasets:[{data:Object.values(svc),
+      backgroundColor:["#1F4E78","#3730A3","#2DB37B","#F59E0B","#9CA3AF"],borderWidth:2,borderColor:"#fff"}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:"55%",plugins:{legend:{position:"bottom"}}}
+  });
+
+  // Event ranking
+  const evAgg={};
+  DATA.forEach(m=>{evAgg[m.event]=(evAgg[m.event]||0)+1;});
+  const evSorted = Object.entries(evAgg).sort((a,b)=>b[1]-a[1]);
+  destroyChart("chartEventRank");
+  charts.chartEventRank = new Chart(document.getElementById("chartEventRank"),{
+    type:"bar",
+    data:{labels:evSorted.map(([k])=>(EVENTS[k]&&EVENTS[k].name)||k),
+      datasets:[{label:"名刺数",data:evSorted.map(([_,v])=>v),backgroundColor:"#1F4E78",borderRadius:6}]},
+    options:{indexAxis:"y",responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:"#EEF2F7"}}}}
+  });
+
+  // Position
+  const posAgg={};
+  DATA.forEach(m=>{const k=m.pos||"(未設定)";posAgg[k]=(posAgg[k]||0)+1;});
+  destroyChart("chartPosition");
+  charts.chartPosition = new Chart(document.getElementById("chartPosition"),{
+    type:"bar",
+    data:{labels:Object.keys(posAgg),
+      datasets:[{label:"名刺数",data:Object.values(posAgg),backgroundColor:"#2E6BA8",borderRadius:6}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{y:{grid:{color:"#EEF2F7"},beginAtZero:true}}}
+  });
+
+  // Event table
+  document.querySelector("#tblEvents tbody").innerHTML = Object.entries(EVENTS).map(([code,ev])=>{
+    const rows = DATA.filter(m=>m.event===code);
+    const pres = rows.filter(m=>m.isPres).length;
+    const a = rows.filter(m=>m.appt==="◯").length;
+    const cnt = rows.reduce((a,m)=>a+(m.counter||0),0);
+    const c = rows.filter(m=>m.appt==="追い中").length;
+    const sl = rows.reduce((a,m)=>a+(m.sales||0),0);
+    return `<tr onclick="goEvent('${code}')">
+      <td><b>${code}</b></td><td>${ev.date}</td><td><span class="event-link">${ev.name}</span></td>
+      <td>${fmtNum(rows.length)}</td><td class="pres-cell">${fmtNum(pres)}</td>
+      <td>${fmtNum(a)}</td><td>${fmtNum(cnt)}</td><td>${fmtNum(c)}</td><td>${fmtYenShort(sl)}</td></tr>`;
+  }).join("");
+}
+
+// ========== STAFF ==========
+function renderStaff(){
+  const map={};
+  DATA.forEach(m=>{
+    if(!map[m.staff]) map[m.staff]={name:m.staff,events:new Set(),total:0,pres:0,appt:0,counter:0,chase:0,sales:0};
+    const x=map[m.staff]; x.events.add(m.event); x.total++;
+    if(m.isPres) x.pres++;
+    if(m.appt==="◯") x.appt++; if(m.appt==="追い中") x.chase++;
+    x.counter+=(m.counter||0); x.sales+=(m.sales||0);
+  });
+  const list = Object.values(map).sort((a,b)=>b.total-a.total);
+
+  document.getElementById("staffKpis").innerHTML = [
+    {l:"スタッフ数",val:fmtNum(list.length),u:"人"},
+    {l:"名刺合計",val:fmtNum(list.reduce((a,x)=>a+x.total,0)),u:"枚"},
+    {l:"社長 合計",val:fmtNum(list.reduce((a,x)=>a+x.pres,0)),cls:"pres"},
+    {l:"アポ◯（即）",val:fmtNum(list.reduce((a,x)=>a+x.appt,0)),u:"件"},
+    {l:"商談化アポ",val:fmtNum(list.reduce((a,x)=>a+x.counter,0)),u:"件"},
+    {l:"成約合計",val:fmtYenShort(list.reduce((a,x)=>a+x.sales,0)),cls:"accent"},
+  ].map(k=>`<div class="kpi ${k.cls||''}"><div class="label">${k.l}</div><div class="val">${k.val}<span class="unit">${k.u||''}</span></div></div>`).join("");
+
+  if(!list.length){ ["chartStaffBar","chartStaffSales"].forEach(destroyChart); document.querySelector("#tblStaff tbody").innerHTML=""; document.getElementById("staffTfoot").innerHTML=""; document.getElementById("personalContent").innerHTML='<div class="sub">データがありません</div>'; return; }
+
+  destroyChart("chartStaffBar");
+  charts.chartStaffBar = new Chart(document.getElementById("chartStaffBar"),{
+    type:"bar",
+    data:{labels:list.map(s=>s.name),
+      datasets:[
+        {label:"名刺数",data:list.map(s=>s.total),backgroundColor:"#1F4E78",borderRadius:6},
+        {label:"社長",data:list.map(s=>s.pres),backgroundColor:"#9D174D",borderRadius:6},
+        {label:"アポ◯",data:list.map(s=>s.appt),backgroundColor:"#2DB37B",borderRadius:6}]},
+    options:{indexAxis:"y",responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"bottom"}},scales:{x:{grid:{color:"#EEF2F7"}}}}
+  });
+  destroyChart("chartStaffSales");
+  charts.chartStaffSales = new Chart(document.getElementById("chartStaffSales"),{
+    type:"bar",
+    data:{labels:list.map(s=>s.name),
+      datasets:[{label:"成約",data:list.map(s=>s.sales),backgroundColor:"#15803D",borderRadius:6}]},
+    options:{indexAxis:"y",responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{x:{grid:{color:"#EEF2F7"}}}}
+  });
+
+  const tbody = document.querySelector("#tblStaff tbody");
+  tbody.innerHTML = list.map(s=>{
+    const rate = s.total ? Math.round(s.pres/s.total*100) : 0;
+    const color = rate>=15 ? "#15803D" : rate>=8 ? "#92400E" : "#9D174D";
+    return `<tr onclick="showPersonal('${s.name}')">
+      <td><span class="avatar">${initials(s.name)}</span><span class="staff-link">${s.name}</span></td>
+      <td>${fmtNum(s.events.size)}</td>
+      <td>${fmtNum(s.total)}</td>
+      <td class="pres-cell">${fmtNum(s.pres)}</td>
+      <td class="pres-cell-soft" style="color:${color};font-weight:700">${rate}%</td>
+      <td>${fmtNum(s.appt)}</td>
+      <td>${fmtNum(s.counter)}</td>
+      <td>${fmtNum(s.chase)}</td>
+      <td>${fmtYenShort(s.sales)}</td></tr>`;
+  }).join("");
+
+  const tot = list.reduce((a,s)=>({events:a.events+s.events.size,total:a.total+s.total,pres:a.pres+s.pres,appt:a.appt+s.appt,counter:a.counter+s.counter,chase:a.chase+s.chase,sales:a.sales+s.sales}),{events:0,total:0,pres:0,appt:0,counter:0,chase:0,sales:0});
+  const totRate = tot.total ? Math.round(tot.pres/tot.total*100) : 0;
+  document.getElementById("staffTfoot").innerHTML = `
+    <td>合計</td><td>${fmtNum(tot.events)}</td><td>${fmtNum(tot.total)}</td>
+    <td class="pres-cell">${fmtNum(tot.pres)}</td><td class="pres-cell-soft">${totRate}%</td>
+    <td>${fmtNum(tot.appt)}</td><td>${fmtNum(tot.counter)}</td><td>${fmtNum(tot.chase)}</td>
+    <td>${fmtYenShort(tot.sales)}</td>`;
+
+  showPersonal(USER.staff in map ? USER.staff : list[0].name);
+}
+
+window.showPersonal = function(staff){
+  document.getElementById("personalTitle").textContent = `個人詳細：${staff}さん`;
+  const rows = DATA.filter(m=>m.staff===staff);
+  const pres = rows.filter(m=>m.isPres).length;
+  const appt = rows.filter(m=>m.appt==="◯").length;
+  const cnt = rows.reduce((a,m)=>a+(m.counter||0),0);
+  const sales = rows.reduce((a,m)=>a+(m.sales||0),0);
+  const evList = [...new Set(rows.map(m=>m.event))];
+
+  document.getElementById("personalContent").innerHTML = `
+    <div class="kpis" style="grid-template-columns:repeat(6,1fr);margin-bottom:14px">
+      <div class="kpi"><div class="label">出務</div><div class="val">${evList.length}</div></div>
+      <div class="kpi"><div class="label">名刺</div><div class="val">${fmtNum(rows.length)}</div></div>
+      <div class="kpi pres"><div class="label">社長</div><div class="val">${fmtNum(pres)}</div></div>
+      <div class="kpi"><div class="label">アポ◯</div><div class="val">${fmtNum(appt)}</div></div>
+      <div class="kpi"><div class="label">商談化</div><div class="val">${fmtNum(cnt)}</div></div>
+      <div class="kpi accent"><div class="label">成約</div><div class="val">${fmtYenShort(sales)}</div></div>
+    </div>
+    <div style="font-size:12px;color:var(--navy);font-weight:700;margin-bottom:6px">📇 名刺一覧</div>
+    <div style="overflow-x:auto"><table>
+      <thead><tr><th class="left">イベント</th><th class="left">会社名</th><th class="left">役職</th><th class="left">氏名</th><th class="left">ポジ</th><th class="left">アポ</th><th>商談化</th><th class="pres-cell-soft">社長</th><th>成約</th></tr></thead>
+      <tbody>${rows.map(r=>{
+        const dup = DATA.filter(m=>m.company===r.company&&m.staff!==r.staff).length>0;
+        return `<tr ${dup?'style="background:#FEE2E2"':''}>
+          <td>${r.event}</td>
+          <td><b>${maskCompany(r.company,r)}</b>${dup?' <span class="chip ng" style="font-size:9px">⚠</span>':''}</td>
+          <td>${r.title||""}</td><td>${r.person||""}</td>
+          <td>${r.pos?'<span class="chip position">'+r.pos+'</span>':""}</td>
+          <td><span class="chip ${r.appt==="◯"?"ok":r.appt==="×"?"ng":"warn"}">${r.appt||"-"}</span></td>
+          <td>${r.counter||0}</td>
+          <td class="pres-cell">${r.isPres?"◯":""}</td>
+          <td>${fmtYen(r.sales)}</td></tr>`;
+      }).join("")||'<tr><td colspan="9" style="text-align:center;color:var(--muted)">名刺なし</td></tr>'}</tbody>
+    </table></div>`;
+};
+
+// ========== EVENT ==========
+let currentEvent = null;
+function renderEventSelector(){
+  const sel = document.getElementById("eventSelector");
+  sel.innerHTML = Object.entries(EVENTS).map(([code,ev])=>
+    `<button class="tab" style="flex:none;min-width:auto" onclick="showEvent('${code}')">${code} ${ev.name}</button>`
+  ).join("") || '<div class="sub">イベントがありません。「管理 / 移行」タブで追加してください</div>';
+  if(currentEvent && EVENTS[currentEvent]) showEvent(currentEvent);
+  else if(Object.keys(EVENTS).length) showEvent(Object.keys(EVENTS)[0]);
+}
+
+window.goEvent = function(code){
+  document.querySelectorAll("#tabs .tab").forEach(b=>b.classList.remove("active"));
+  document.querySelector('[data-tab="event"]').classList.add("active");
+  document.querySelectorAll(".section").forEach(s=>s.classList.remove("active"));
+  document.getElementById("sec-event").classList.add("active");
+  showEvent(code);
+};
+
+window.showEvent = function(code){
+  currentEvent = code;
+  document.querySelectorAll("#eventSelector .tab").forEach(b=>{
+    b.classList.toggle("active", b.textContent.startsWith(code));
+  });
+  const ev = EVENTS[code]; if(!ev) return;
+  const rows = DATA.filter(m=>m.event===code);
+  document.getElementById("eventTitle").textContent = `${code}　${ev.name}`;
+  const staffs = [...new Set(rows.map(m=>m.staff))];
+  document.getElementById("eventMeta").textContent = `開催日：${ev.date} ／ 出務 ${staffs.length}名（${staffs.join(" / ")}）`;
+
+  const pres = rows.filter(m=>m.isPres).length;
+  const appt = rows.filter(m=>m.appt==="◯").length;
+  const cnt = rows.reduce((a,m)=>a+(m.counter||0),0);
+  const chas = rows.filter(m=>m.appt==="追い中").length;
+  const sales = rows.reduce((a,m)=>a+(m.sales||0),0);
+  document.getElementById("eventKpis").innerHTML = [
+    {l:"名刺",val:fmtNum(rows.length),u:"枚"},
+    {l:"社長",val:fmtNum(pres),cls:"pres",u:"枚"},
+    {l:"アポ◯",val:fmtNum(appt),u:"件"},
+    {l:"商談化",val:fmtNum(cnt),u:"件"},
+    {l:"追い中",val:fmtNum(chas),u:"件"},
+    {l:"成約",val:fmtYenShort(sales),cls:"accent"},
+  ].map(k=>`<div class="kpi ${k.cls||''}"><div class="label">${k.l}</div><div class="val">${k.val}<span class="unit">${k.u||''}</span></div></div>`).join("");
+
+  // Staff table
+  const sMap={};
+  rows.forEach(r=>{
+    if(!sMap[r.staff]) sMap[r.staff]={name:r.staff,total:0,pres:0,appt:0,counter:0,sales:0};
+    const x=sMap[r.staff]; x.total++;
+    if(r.isPres) x.pres++;
+    if(r.appt==="◯") x.appt++;
+    x.counter+=(r.counter||0); x.sales+=(r.sales||0);
+  });
+  document.querySelector("#tblEventStaff tbody").innerHTML = Object.values(sMap).sort((a,b)=>b.total-a.total).map(s=>`
+    <tr><td><span class="avatar">${initials(s.name)}</span><b>${s.name}</b></td>
+    <td>${fmtNum(s.total)}</td>
+    <td class="pres-cell">${fmtNum(s.pres)}</td>
+    <td>${fmtNum(s.appt)}</td>
+    <td>${fmtNum(s.counter)}</td>
+    <td>${fmtYenShort(s.sales)}</td></tr>
+  `).join("")||'<tr><td colspan="6" style="text-align:center;color:var(--muted)">データなし</td></tr>';
+
+  // Position chart
+  const posAgg={};
+  rows.forEach(r=>{const k=r.pos||"(未)";posAgg[k]=(posAgg[k]||0)+1;});
+  destroyChart("chartEventPos");
+  if(Object.keys(posAgg).length){
+    charts.chartEventPos = new Chart(document.getElementById("chartEventPos"),{
+      type:"doughnut",
+      data:{labels:Object.keys(posAgg),datasets:[{data:Object.values(posAgg),
+        backgroundColor:["#1F4E78","#2E6BA8","#9BB7D4","#C5D6E6"],borderWidth:2,borderColor:"#fff"}]},
+      options:{responsive:true,maintainAspectRatio:false,cutout:"55%",plugins:{legend:{position:"bottom"}}}
+    });
+  }
+
+  // Cards
+  document.querySelector("#tblEventCards tbody").innerHTML = rows.map(r=>`
+    <tr><td>${r.staff}</td><td><b>${maskCompany(r.company,r)}</b></td><td>${r.title||""}</td><td>${r.person||""}</td>
+    <td>${r.pos?'<span class="chip position">'+r.pos+'</span>':""}</td>
+    <td><span class="chip ${r.appt==="◯"?"ok":r.appt==="×"?"ng":"warn"}">${r.appt||"-"}</span></td>
+    <td>${r.counter||0}</td>
+    <td class="pres-cell">${r.isPres?"◯":""}</td>
+    <td>${fmtYen(r.sales)}</td>
+    <td>${r.service?'<span class="chip service">'+r.service+'</span>':""}</td></tr>
+  `).join("")||'<tr><td colspan="10" style="text-align:center;color:var(--muted)">名刺なし</td></tr>';
+
+  // Duplicates
+  const dupes=new Set();
+  rows.forEach(r=>{
+    const others = DATA.filter(m=>m.company===r.company && m.event!==r.event);
+    others.forEach(o=>{
+      dupes.add(`${r.company}|${r.staff}|${o.staff}|${o.event}`);
+    });
+  });
+  const dupList = [...dupes].map(s=>{const [c,s1,s2,e]=s.split("|");return `<div class="alert-box"><b>${c}</b>：${s1}（このイベント） × ${s2}（${e}）</div>`;});
+  document.getElementById("eventDupes").innerHTML = dupList.length ? dupList.join("") : '<div class="sub">かぶりはありません。</div>';
+};
+
+// ========== RECORDS ==========
+function renderRecords(){
+  const fe = document.getElementById("filterEvent");
+  fe.innerHTML = '<option value="">全イベント</option>' + Object.entries(EVENTS).map(([k,v])=>`<option value="${k}">${v.name}</option>`).join("");
+  const fs = document.getElementById("filterStaff");
+  if(USER.role==="admin"){
+    fs.style.display = "";
+    fs.innerHTML = '<option value="">全スタッフ</option>' + [...new Set(DATA.map(m=>m.staff))].map(s=>`<option>${s}</option>`).join("");
+  } else {
+    fs.style.display = "none";
+    fs.value = "";
+  }
+  document.querySelectorAll(".search-bar input, .search-bar select").forEach(el=>el.oninput=applyFilter);
+  applyFilter();
+}
+function applyFilter(){
+  const q = (document.getElementById("searchInput").value||"").toLowerCase();
+  const ev = document.getElementById("filterEvent").value;
+  const st = document.getElementById("filterStaff").value;
+  const ap = document.getElementById("filterAppt").value;
+  const po = document.getElementById("filterPos").value;
+  const pr = document.getElementById("filterPres").value;
+  const filtered = DATA.filter(m=>{
+    if(ev && m.event!==ev) return false;
+    if(st && m.staff!==st) return false;
+    if(ap && m.appt!==ap) return false;
+    if(po && m.pos!==po) return false;
+    if(pr==="1" && !m.isPres) return false;
+    if(q){
+      const hay = [m.company,m.person,m.memo,m.title].join("").toLowerCase();
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  });
+  const showStaffCol = USER.role==="admin";
+  document.querySelectorAll(".admin-only").forEach(el=>el.style.display = showStaffCol ? "" : "none");
+  document.querySelector("#tblRecords tbody").innerHTML = filtered.map(r=>{
+    const canEdit = USER.role==="admin" || r.staff===USER.staff;
+    return `<tr>
+    <td>${r.event}</td>${showStaffCol?`<td>${r.staff}</td>`:""}<td><b>${maskCompany(r.company,r)}</b></td>
+    <td>${r.title||""}</td><td>${r.person||""}</td><td>${r.pref||""}</td>
+    <td>${(r.dt||"").slice(5)}</td>
+    <td><span class="chip ${r.appt==="◯"?"ok":r.appt==="×"?"ng":"warn"}">${r.appt||"-"}</span></td>
+    <td>${r.counter||0}</td>
+    <td>${r.pos?'<span class="chip position">'+r.pos+'</span>':""}</td>
+    <td class="pres-cell">${r.isPres?"◯":""}</td>
+    <td>${fmtYen(r.sales)}</td>
+    <td>${r.service?'<span class="chip service">'+r.service+'</span>':""}</td>
+    <td>${canEdit?`<button class="btn sm secondary" onclick="openForm(${r.id})">✏</button> <button class="btn sm danger" onclick="deleteRecord(${r.id})">🗑</button>`:'<span class="locked">権限なし</span>'}</td>
+  </tr>`;}).join("");
+  document.getElementById("recordCount").textContent = `${filtered.length} / ${DATA.length} 件 表示中`;
+}
+
+// ========== ADMIN ==========
+function renderAdmin(){
+  document.querySelector("#tblEventAdmin tbody").innerHTML = Object.entries(EVENTS).map(([code,ev])=>{
+    const cnt = DATA.filter(d=>d.event===code).length;
+    return `<tr><td><b>${code}</b></td><td>${ev.date}</td><td>${ev.name}</td><td>${fmtNum(cnt)}</td>
+      <td><button class="btn sm danger" onclick="deleteEvent('${code}')">🗑</button></td></tr>`;
+  }).join("");
+}
+
+function addEvent(){
+  const code = document.getElementById("newEventCode").value.trim();
+  const name = document.getElementById("newEventName").value.trim();
+  const date = document.getElementById("newEventDate").value;
+  if(!/^EV-\d{4}-\d{4}$/.test(code)){ showToast("コード形式 EV-YYYY-MMDD","err"); return; }
+  if(!name||!date){ showToast("名前と日付を入力","err"); return; }
+  EVENTS[code] = {name,date};
+  saveEvents(EVENTS);
+  ["newEventCode","newEventName","newEventDate"].forEach(id=>document.getElementById(id).value="");
+  showToast("✓ イベント追加");
+  renderAll();
+}
+function deleteEvent(code){
+  const cnt = DATA.filter(d=>d.event===code).length;
+  if(cnt>0){ if(!confirm(`このイベントには ${cnt}件 の名刺データがあります。削除しますか？(データも削除されます)`)) return; }
+  else if(!confirm("このイベントを削除しますか？")) return;
+  delete EVENTS[code]; saveEvents(EVENTS);
+  DATA = DATA.filter(d=>d.event!==code); saveData(DATA);
+  showToast("✓ 削除しました"); renderAll();
+}
+
+// =========================================================
+// CSV IMPORT/EXPORT
+// =========================================================
+function exportCSV(){
+  const headers = ["イベントコード","担当","会社名","役職","氏名","都道府県","交換日時","アポ","ポジション","アポカウンター","社長","担当フラグ","成約額","サービス","備考"];
+  const rows = DATA.map(d=>[d.event,d.staff,d.company,d.title,d.person,d.pref,d.dt,d.appt,d.pos,d.counter,d.isPres?"◯":"",d.isMember?"◯":"",d.sales,d.service,d.memo]);
+  const csv = [headers, ...rows].map(r=>r.map(c=>`"${(c||"").toString().replace(/"/g,'""')}"`).join(",")).join("\n");
+  const blob = new Blob(["﻿"+csv],{type:"text/csv"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a"); a.href=url; a.download=`meishi_${new Date().toISOString().slice(0,10)}.csv`; a.click();
+  showToast("✓ CSVをダウンロードしました");
+}
+
+document.getElementById("csvFile").addEventListener("change", e=>{
+  const f = e.target.files[0]; if(!f) return;
+  const reader = new FileReader();
+  reader.onload = ev=>{
+    const text = ev.target.result.replace(/^﻿/, "");
+    const lines = text.split(/\r?\n/).filter(l=>l.trim());
+    if(lines.length<2){ showToast("ヘッダ＋データが必要","err"); return; }
+    const parse = line => {
+      const out=[],re=/("([^"]|"")*"|[^,]+)?,/g;
+      let m, last=0, parts=[];
+      const wrapped = line+","; while((m=re.exec(wrapped))!==null){ parts.push(m[1]||""); }
+      return parts.map(p=>p.replace(/^"|"$/g,"").replace(/""/g,'"'));
+    };
+    const header = parse(lines[0]);
+    const colIndex = name=>header.findIndex(h=>h.includes(name));
+    const idx = {
+      event:colIndex("イベント"), staff:colIndex("担当"), company:colIndex("会社"), title:colIndex("役職"),
+      person:colIndex("氏名"), pref:colIndex("都道府県"), dt:colIndex("日時"), appt:colIndex("アポ"),
+      pos:colIndex("ポジ"), counter:colIndex("カウンター"), pres:colIndex("社長"), member:colIndex("担当フラグ"),
+      sales:colIndex("成約"), service:colIndex("サービス"), memo:colIndex("備考"),
+    };
+    const newRecs = [];
+    for(let i=1;i<lines.length;i++){
+      const cols = parse(lines[i]);
+      const eventCode = cols[idx.event] || "";
+      if(!eventCode) continue;
+      if(!EVENTS[eventCode]){
+        EVENTS[eventCode] = {name:eventCode, date:eventCode.slice(3,7)+"-"+eventCode.slice(8,10)+"-"+eventCode.slice(10,12)};
+      }
+      newRecs.push({
+        id: Date.now()+i,
+        event: eventCode,
+        staff: cols[idx.staff]||"", company: cols[idx.company]||"", title: cols[idx.title]||"",
+        person: cols[idx.person]||"", pref: cols[idx.pref]||"", dt: cols[idx.dt]||"",
+        appt: cols[idx.appt]||"", pos: cols[idx.pos]||"",
+        counter: Number(cols[idx.counter])||0,
+        isPres: (cols[idx.pres]||"").includes("◯")?1:0,
+        isMember: (cols[idx.member]||"◯").includes("◯")?1:0,
+        sales: Number((cols[idx.sales]||"").replace(/[^\d]/g,""))||0,
+        service: cols[idx.service]||"", memo: cols[idx.memo]||"",
+      });
+    }
+    document.getElementById("importPreview").innerHTML = `
+      <div class="success-box" style="margin-top:10px">
+        ✓ CSV解析完了：<b>${newRecs.length}件</b> の名刺データを取り込み準備しました（${Object.keys(EVENTS).length}イベント）<br>
+        <button class="btn primary sm" onclick='confirmImport(${JSON.stringify(newRecs).replace(/'/g,"&apos;")})' style="margin-top:8px">📥 取り込み実行</button>
+      </div>`;
+  };
+  reader.readAsText(f,"utf-8");
+});
+function confirmImport(recs){
+  DATA = [...recs, ...DATA];
+  saveData(DATA); saveEvents(EVENTS);
+  showToast(`✓ ${recs.length}件取り込みました`);
+  document.getElementById("importPreview").innerHTML = "";
+  document.getElementById("csvFile").value = "";
+  renderAll();
+}
+
+function exportAllJSON(){
+  const blob = new Blob([JSON.stringify({data:DATA, events:EVENTS}, null, 2)],{type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a"); a.href=url; a.download=`meishi_backup_${new Date().toISOString().slice(0,10)}.json`; a.click();
+  showToast("✓ JSONエクスポート完了");
+}
+document.getElementById("jsonFile").addEventListener("change",e=>{
+  const f=e.target.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=ev=>{
+    try{
+      const j=JSON.parse(ev.target.result);
+      if(!confirm(`データを上書きします。\n名刺 ${j.data.length}件 / イベント ${Object.keys(j.events||{}).length}件\nよろしいですか？`)) return;
+      DATA=j.data||[]; EVENTS=j.events||{};
+      saveData(DATA); saveEvents(EVENTS);
+      showToast("✓ 取り込みました"); renderAll();
+    }catch(err){ showToast("JSONエラー","err"); }
+  };
+  r.readAsText(f);
+});
+
+function wipeAll(){
+  if(!confirm("⚠ すべての名刺データとイベントを削除します。本当によろしいですか？")) return;
+  if(!confirm("⚠ 本当に？復元できません。")) return;
+  localStorage.removeItem(K_DATA); localStorage.removeItem(K_EVENTS);
+  DATA = []; EVENTS = loadEvents();
+  showToast("✓ 全消去しました"); renderAll();
+}
+
+function loadSampleData(){
+  if(DATA.length && !confirm("既存データがあります。サンプルを追加しますか？(既存は残ります)")) return;
+  EVENTS = {
+    "EV-2025-0730":{name:"産業DX Expo",date:"2025-07-30"},
+    "EV-2025-1210":{name:"Japan BUILD 2025",date:"2025-12-10"},
+    "EV-2026-0305":{name:"春の商談会 東京",date:"2026-03-05"},
+  };
+  saveEvents(EVENTS);
+  const samples = [
+    {event:"EV-2025-0730",staff:"柴田",company:"広島八谷建設",title:"代表取締役",person:"八谷 賢一",pref:"広島",dt:"2025-07-30 11:20",appt:"◯",pos:"ブース",isPres:1,isMember:0,counter:2,sales:550000,service:"HH",memo:""},
+    {event:"EV-2025-0730",staff:"三五",company:"菊池建設",title:"取締役",person:"菊池 翔",pref:"福岡",dt:"2025-07-30 11:50",appt:"◯",pos:"ブース",isPres:0,isMember:1,counter:1,sales:600000,service:"HH",memo:"伊勝経由"},
+    {event:"EV-2025-1210",staff:"柴田",company:"松村物産",title:"部長",person:"喜多 剛士",pref:"東京",dt:"2025-12-10 11:00",appt:"◯",pos:"ブース",isPres:0,isMember:1,counter:1,sales:420000,service:"HH",memo:"建設・設備"},
+    {event:"EV-2025-1210",staff:"三五",company:"上村建設",title:"会長",person:"上村 洋史",pref:"東京",dt:"2025-12-10 12:00",appt:"◯",pos:"ブース",isPres:1,isMember:0,counter:3,sales:1200000,service:"HH",memo:"VIP"},
+    {event:"EV-2025-1210",staff:"鈴木H",company:"安藤ハザマ",title:"代表取締役",person:"安藤 良和",pref:"東京",dt:"2025-12-10 10:45",appt:"◯",pos:"ブース",isPres:1,isMember:0,counter:4,sales:1500000,service:"HH",memo:"大型案件"},
+    {event:"EV-2026-0305",staff:"鈴木H",company:"安藤ハザマ",title:"取締役",person:"安藤 翔",pref:"東京",dt:"2026-03-05 12:30",appt:"◯",pos:"ブース",isPres:0,isMember:1,counter:0,sales:0,service:"HH",memo:"※かぶり同社"},
+    {event:"EV-2026-0305",staff:"誠英",company:"国土地建設",title:"社長",person:"国土 修",pref:"東京",dt:"2026-03-05 11:00",appt:"◯",pos:"外回り",isPres:1,isMember:0,counter:2,sales:1200000,service:"HH",memo:""},
+    {event:"EV-2026-0305",staff:"柴田",company:"住友スクエア",title:"代表",person:"住友 健",pref:"東京",dt:"2026-03-05 13:00",appt:"追い中",pos:"ブース",isPres:1,isMember:0,counter:1,sales:0,service:"HH",memo:""},
+  ];
+  let id = Date.now();
+  samples.forEach(s=>{ s.id=id++; DATA.push(s); });
+  saveData(DATA);
+  showToast(`✓ サンプル${samples.length}件投入`); renderAll();
+}
+
+// =========================================================
+// MISC
+// =========================================================
+function showToast(msg,type){
+  const t=document.getElementById("toast");
+  t.textContent=msg; t.className="toast show "+(type||"");
+  setTimeout(()=>t.classList.remove("show"),2200);
+}
+
+Chart.defaults.font.family = '"Yu Gothic UI","Hiragino Sans","Noto Sans JP",system-ui,sans-serif';
+Chart.defaults.color = "#3A4856";
+
+// Drag&drop CSV
+const dropZone = document.querySelector('.import-zone');
+if(dropZone){
+  dropZone.addEventListener('dragover',e=>{e.preventDefault();dropZone.style.background='#D9E1F2';});
+  dropZone.addEventListener('dragleave',e=>{dropZone.style.background='';});
+  dropZone.addEventListener('drop',e=>{
+    e.preventDefault();dropZone.style.background='';
+    const f = e.dataTransfer.files[0];
+    if(f){
+      document.getElementById("csvFile").files = e.dataTransfer.files;
+      document.getElementById("csvFile").dispatchEvent(new Event('change'));
+    }
+  });
+}
+
+// =========================================================
+// BOOTSTRAP
+// =========================================================
+if(USER){ showApp(); } else { /* login screen visible */ }
+</script>
+</body>
+</html>
