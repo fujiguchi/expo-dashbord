@@ -1554,6 +1554,17 @@ function showApp(){
   // 非管理者は「+名刺登録」ボタンは見えるが、他のタブもデータが自分のだけに絞られる
   document.body.classList.toggle("user-mode", USER.role!=="admin");
 
+  // 一般メンバーは「今日」「名刺レコード」のみ表示（管理者は全タブ）
+  const memberOnlyTabs = ["today","records"];
+  document.querySelectorAll("#tabs .tab").forEach(btn=>{
+    const t = btn.dataset.tab;
+    if(USER.role==="admin"){
+      btn.style.display = ""; // 全部見える
+    } else {
+      btn.style.display = memberOnlyTabs.includes(t) ? "" : "none";
+    }
+  });
+
   // スマホ or 一般メンバー → 「今日」タブをデフォルトに
   const isMobile = window.matchMedia("(max-width:640px)").matches;
   if(isMobile || USER.role!=="admin"){
