@@ -73,8 +73,11 @@ header.page-header h1{font-size:22px;margin:0;color:var(--navy)}
 .panel h2::before{content:"";display:inline-block;width:3px;height:13px;background:var(--navy);border-radius:2px}
 .chart-wrap{position:relative;height:260px}
 
-table{width:100%;border-collapse:collapse;font-size:12.5px}
-th,td{padding:8px 9px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:5px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap;line-height:1.4}
+.scroll-y{max-height:380px;overflow-y:auto;border:1px solid var(--line);border-radius:6px}
+.scroll-y thead th{position:sticky;top:0;z-index:1}
+.scroll-y tfoot td{position:sticky;bottom:0;z-index:1}
 th:first-child,td:first-child,td.left,th.left{text-align:left}
 thead th{background:var(--navy);color:#fff;font-weight:600;border-bottom:none;font-size:11.5px}
 thead th:first-child{border-top-left-radius:6px} thead th:last-child{border-top-right-radius:6px}
@@ -209,7 +212,7 @@ footer{margin-top:24px;padding:14px;font-size:11px;color:var(--muted);text-align
     </div>
     <div class="panel">
       <h2>イベント一覧</h2>
-      <div style="overflow-x:auto"><table id="tblEvents">
+      <div class="scroll-y" style="overflow:auto;max-height:380px"><table id="tblEvents">
         <thead><tr><th class="left">コード</th><th class="left">開催日</th><th class="left">イベント名</th>
           <th>名刺数</th><th class="pres-cell-soft">社長</th><th>アポ◯</th><th>売上</th><th>経費</th><th>粗利</th><th>粗利率</th><th>1名刺/売上</th></tr></thead>
         <tbody></tbody></table></div>
@@ -225,7 +228,7 @@ footer{margin-top:24px;padding:14px;font-size:11px;color:var(--muted);text-align
     </div>
     <div class="panel">
       <h2>スタッフ一覧</h2>
-      <div style="overflow-x:auto"><table id="tblStaff">
+      <div class="scroll-y" style="overflow:auto;max-height:440px"><table id="tblStaff">
         <thead><tr><th class="left">スタッフ</th><th>出務</th><th>名刺</th>
           <th class="pres-cell-soft">社長</th><th class="pres-cell-soft">社長率</th>
           <th>アポ◯</th><th>商談化</th><th>追い中</th><th>成約合計</th></tr></thead>
@@ -244,7 +247,7 @@ footer{margin-top:24px;padding:14px;font-size:11px;color:var(--muted);text-align
         <button class="chip-btn" data-pivot="appt" onclick="setPivot(this,'appt')">アポ◯</button>
         <button class="chip-btn" data-pivot="sales" onclick="setPivot(this,'sales')">成約額</button>
       </div>
-      <div style="overflow-x:auto"><table id="tblPivot"><thead></thead><tbody></tbody><tfoot></tfoot></table></div>
+      <div class="scroll-y" style="overflow:auto;max-height:440px"><table id="tblPivot"><thead></thead><tbody></tbody><tfoot></tfoot></table></div>
     </div>
 
     <div class="panel" style="margin-top:14px">
@@ -266,13 +269,13 @@ footer{margin-top:24px;padding:14px;font-size:11px;color:var(--muted);text-align
     </div>
     <div class="grid">
       <div class="panel"><h2>このイベントの出務スタッフ</h2>
-        <div style="overflow-x:auto"><table id="tblEventStaff">
+        <div class="scroll-y" style="overflow:auto;max-height:300px"><table id="tblEventStaff">
           <thead><tr><th class="left">スタッフ</th><th>名刺</th><th class="pres-cell-soft">社長</th>
             <th>アポ◯</th><th>商談化</th><th>成約</th></tr></thead><tbody></tbody></table></div></div>
       <div class="panel"><h2>このイベントのポジション分布</h2><div class="chart-wrap"><canvas id="chartEventPos"></canvas></div></div>
     </div>
     <div class="panel"><h2>このイベントの名刺レコード</h2>
-      <div style="overflow-x:auto"><table id="tblEventCards">
+      <div class="scroll-y" style="overflow:auto;max-height:380px"><table id="tblEventCards">
         <thead><tr><th class="left">担当</th><th class="left">会社</th><th class="left">役職</th><th class="left">氏名</th>
           <th class="left">ポジ</th><th class="left">アポ</th><th>商談化</th><th class="pres-cell-soft">社長</th>
           <th class="left">成約</th><th class="left">サービス</th></tr></thead><tbody></tbody></table></div></div>
@@ -292,7 +295,7 @@ footer{margin-top:24px;padding:14px;font-size:11px;color:var(--muted);text-align
         <select id="filterPres"><option value="">役職フラグ：全て</option><option value="1">社長のみ</option></select>
         <button class="btn secondary sm" onclick="exportCSV()">📥 CSV出力</button>
       </div>
-      <div style="overflow-x:auto"><table id="tblRecords">
+      <div class="scroll-y" style="overflow:auto;max-height:520px"><table id="tblRecords">
         <thead><tr><th class="left">イベント</th><th class="left admin-only">担当</th><th class="left">会社名</th>
           <th class="left">役職</th><th class="left">氏名</th><th class="left">県</th>
           <th class="left">交換日時</th><th class="left">アポ</th><th>商談化</th><th class="left">ポジ</th>
