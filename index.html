@@ -497,8 +497,7 @@ function loadData(){ return JSON.parse(localStorage.getItem(K_DATA)||"[]"); }
 function saveData(d){ localStorage.setItem(K_DATA, JSON.stringify(d)); }
 function loadEvents(){
   return JSON.parse(localStorage.getItem(K_EVENTS)||JSON.stringify({
-    "EV-2025-1210":{name:"Japan BUILD 2025",date:"2025-12-10"},
-    "EV-2025-0730":{name:"産業DX Expo",date:"2025-07-30"},
+    "EV-2025-1210":{name:"Japan BUILD 2025/12/10",date:"2025-12-10"},
   }));
 }
 function saveEvents(e){ localStorage.setItem(K_EVENTS, JSON.stringify(e)); }
