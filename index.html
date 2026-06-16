@@ -529,11 +529,52 @@ function showApp(){
   document.getElementById("userName").textContent = USER.staff;
   document.getElementById("userRole").textContent = USER.role==="admin"?"管理者":"一般";
   document.getElementById("userRole").className = "role"+(USER.role==="admin"?" admin":"");
-  // Hide admin tab from non-admins
+  // 管理タブは管理者のみ表示
   const adminTab = document.querySelector('[data-tab="admin"]');
   adminTab.style.display = USER.role==="admin" ? "" : "none";
-  // hide records tab content company names if not admin? Keep for now but masking applied in render
+
+  // 🔥 初回ログイン時に自動でJapan BUILD 373件をロード
+  if(DATA.length === 0 && typeof EMBEDDED_JAPAN_BUILD_CSV !== "undefined"){
+    autoLoadInitialData();
+  }
   renderAll();
+}
+
+function autoLoadInitialData(){
+  try{
+    const text = EMBEDDED_JAPAN_BUILD_CSV;
+    const lines = text.replace(/^﻿/,"").split(/\r?\n/).filter(l=>l.trim());
+    const parse = line => {
+      const out=[],re=/("([^"]|"")*"|[^,]+)?,/g;
+      const wrapped = line+",";
+      let m; while((m=re.exec(wrapped))!==null){ out.push(m[1]||""); }
+      return out.map(p=>p.replace(/^"|"$/g,"").replace(/""/g,'"'));
+    };
+    const header = parse(lines[0]);
+    const idx = name => header.findIndex(h=>h.includes(name));
+    const I = {event:idx("イベント"),staff:idx("担当"),company:idx("会社"),title:idx("役職"),
+      person:idx("氏名"),pref:idx("都道府県"),dt:idx("交換日時"),appt:idx("アポ"),pos:idx("ポジ"),
+      counter:idx("カウンター"),pres:idx("社長"),member:idx("担当フラグ"),sales:idx("成約"),
+      service:idx("サービス"),memo:idx("備考")};
+    if(!EVENTS["EV-2025-1210"]){
+      EVENTS["EV-2025-1210"] = {name:"Japan BUILD 2025/12/10", date:"2025-12-10"};
+    }
+    const recs=[]; let baseId = Date.now();
+    for(let i=1;i<lines.length;i++){
+      const c = parse(lines[i]);
+      const company = (c[I.company]||"").trim();
+      if(!company) continue;
+      recs.push({id:baseId+i,event:c[I.event]||"EV-2025-1210",staff:c[I.staff]||"",company,
+        title:c[I.title]||"",person:c[I.person]||"",pref:c[I.pref]||"",dt:c[I.dt]||"2025-12-10",
+        appt:c[I.appt]||"",pos:c[I.pos]||"",counter:Number(c[I.counter])||0,
+        isPres:(c[I.pres]||"").includes("◯")?1:0,
+        isMember:(c[I.member]||"◯").includes("◯")?1:0,
+        sales:Number((c[I.sales]||"").replace(/[^\d]/g,""))||0,
+        service:c[I.service]||"",memo:c[I.memo]||""});
+    }
+    DATA = recs; saveData(DATA); saveEvents(EVENTS);
+    setTimeout(()=>showToast(`✓ Japan BUILD 2025/12/10 のデータを自動投入しました（${recs.length}件）`),400);
+  }catch(err){ console.error("AutoLoad失敗:",err); }
 }
 
 // =========================================================
