@@ -1553,28 +1553,53 @@ function showApp(){
   if(adminTab) adminTab.style.display = USER.role==="admin" ? "" : "none";
   // 非管理者は「+名刺登録」ボタンは見えるが、他のタブもデータが自分のだけに絞られる
   document.body.classList.toggle("user-mode", USER.role!=="admin");
+  applyTabVisibility();
+  // リサイズで切り替わる（PC←→スマホ）
+  if(!window._tabResize){
+    window._tabResize = true;
+    window.addEventListener("resize", ()=>{
+      if(USER) applyTabVisibility();
+    });
+  }
+  initDataLoad();
+}
 
-  // 一般メンバーは「今日」「名刺レコード」のみ表示（管理者は全タブ）
-  const memberOnlyTabs = ["today","records"];
+// デバイス別タブ表示制御
+// スマホ(<640px): 今日 + 名刺レコード のみ
+// PC(>=640px): 全タブ（管理タブはadmin限定）
+function applyTabVisibility(){
+  if(!USER) return;
+  const isMobile = window.matchMedia("(max-width:640px)").matches;
+  const mobileTabs = ["today","records"];
   document.querySelectorAll("#tabs .tab").forEach(btn=>{
     const t = btn.dataset.tab;
-    if(USER.role==="admin"){
-      btn.style.display = ""; // 全部見える
+    if(isMobile){
+      btn.style.display = mobileTabs.includes(t) ? "" : "none";
     } else {
-      btn.style.display = memberOnlyTabs.includes(t) ? "" : "none";
+      // PC: 管理タブだけ admin 限定
+      btn.style.display = (t==="admin" && USER.role!=="admin") ? "none" : "";
     }
   });
-
-  // スマホ or 一般メンバー → 「今日」タブをデフォルトに
-  const isMobile = window.matchMedia("(max-width:640px)").matches;
-  if(isMobile || USER.role!=="admin"){
+  // アクティブなタブが非表示になった場合、デフォルトタブに切り替え
+  const active = document.querySelector("#tabs .tab.active");
+  if(active && active.style.display === "none"){
     document.querySelectorAll("#tabs .tab").forEach(b=>b.classList.remove("active"));
     document.querySelectorAll(".section").forEach(s=>s.classList.remove("active"));
-    const todayTab = document.querySelector('[data-tab="today"]');
-    const todaySec = document.getElementById("sec-today");
-    if(todayTab && todaySec){ todayTab.classList.add("active"); todaySec.classList.add("active"); }
+    const fallback = isMobile ? "today" : "overview";
+    const tab = document.querySelector(`[data-tab="${fallback}"]`);
+    const sec = document.getElementById("sec-"+fallback);
+    if(tab && sec){ tab.classList.add("active"); sec.classList.add("active"); }
   }
+  // スマホは初回 今日 タブをデフォルト表示
+  if(isMobile && !active){
+    const tab = document.querySelector('[data-tab="today"]');
+    const sec = document.getElementById("sec-today");
+    document.querySelectorAll(".section").forEach(s=>s.classList.remove("active"));
+    if(tab && sec){ tab.classList.add("active"); sec.classList.add("active"); }
+  }
+}
 
+function initDataLoad(){
   // Supabase 接続中ならクラウドから最新を引いてくる
   updateSyncBadge();
   if(SUPA){
