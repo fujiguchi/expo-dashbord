@@ -1606,6 +1606,7 @@ function initDataLoad(){
   if(SUPA){
     syncFromRemote().then(()=>{
       if(DATA.length === 0 && typeof EMBEDDED_JAPAN_BUILD_CSV !== "undefined") autoLoadInitialData();
+      cleanupInvalidEvents();
       renderAll();
     });
   } else {
@@ -1613,8 +1614,26 @@ function initDataLoad(){
     if(DATA.length === 0 && typeof EMBEDDED_JAPAN_BUILD_CSV !== "undefined"){
       autoLoadInitialData();
     }
+    cleanupInvalidEvents();
     renderAll();
   }
+}
+
+// 無効イベントコードを自動削除（起動時クリーンアップ）
+function cleanupInvalidEvents(){
+  const invalid = Object.keys(EVENTS).filter(c => !/^EV-\d{4}-\d{4}$/.test(c));
+  if(!invalid.length) return;
+  console.log("[cleanup] 無効イベント検出:", invalid);
+  invalid.forEach(c => {
+    delete EVENTS[c];
+    DATA = DATA.filter(d => d.event !== c);
+    if(SUPA){
+      SUPA.from("events").delete().eq("code", c).then(({error})=>{ if(error) console.error(error); });
+      SUPA.from("meishi").delete().eq("event", c).then(({error})=>{ if(error) console.error(error); });
+    }
+  });
+  saveEvents(EVENTS); saveData(DATA);
+  setTimeout(()=>showToast(`✓ 無効イベント ${invalid.length}件 を削除しました`), 500);
 }
 
 function autoLoadInitialData(){
