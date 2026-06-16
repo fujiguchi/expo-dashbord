@@ -344,8 +344,11 @@ body.show-detail-cols .detail-col{display:table-cell}
   <!-- ============ イベント別 ============ -->
   <section class="section" id="sec-event">
     <div class="panel" style="margin-bottom:14px">
-      <h2>イベント選択</h2>
-      <div style="display:flex;gap:6px;flex-wrap:wrap" id="eventSelector"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <h2 style="margin:0">イベント選択</h2>
+        <button class="btn primary sm" onclick="openEventModal()">＋ 新規イベントを追加</button>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center" id="eventSelector"></div>
     </div>
     <div class="panel" style="margin-bottom:14px">
       <h2 id="eventTitle">イベント選択してください</h2>
@@ -503,6 +506,47 @@ body.show-detail-cols .detail-col{display:table-cell}
   </section>
 
   <footer>エキスポDB v1.0 ｜ <span id="footerMode">LocalStorage</span>動作 ｜ Supabase接続で全員共有可</footer>
+</div>
+
+<!-- ============ Modal: 新規イベント追加 ============ -->
+<div class="modal-overlay" id="eventModal">
+  <div class="modal" style="max-width:540px">
+    <div class="modal-header">
+      <h2>🎪 新規イベントを追加</h2>
+      <button class="close" onclick="closeEventModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="info-box">
+        新しいイベント開催が決まったら、ここで追加すれば<b>即時イベント別タブに登場</b>します。
+        当日からスタッフは「+ 名刺を登録」で入力開始できます。
+      </div>
+
+      <div class="form-row">
+        <label>イベント名 <span class="req">*</span></label>
+        <input id="evm_name" type="text" placeholder="例：Japan BUILD 2026 春">
+      </div>
+      <div class="form-row">
+        <label>開催日 <span class="req">*</span></label>
+        <input id="evm_date" type="date">
+      </div>
+      <div class="form-row">
+        <label>イベントコード <span class="hint">日付から自動生成・編集可</span></label>
+        <input id="evm_code" type="text" placeholder="EV-2026-0701">
+      </div>
+      <div class="form-row">
+        <label>経費 <span class="hint">¥（後で編集可）</span></label>
+        <div style="display:flex;align-items:center;gap:4px"><span>¥</span><input id="evm_cost" type="number" min="0" value="0"></div>
+      </div>
+
+      <div class="info-box" id="evmHint" style="display:none">
+        💡 同じコードが既にあります。上書きしますか？
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn secondary" onclick="closeEventModal()">キャンセル</button>
+      <button class="btn primary" onclick="submitEventModal()">＋ 追加して開く</button>
+    </div>
+  </div>
 </div>
 
 <!-- ============ Modal: 名刺登録フォーム ============ -->
@@ -1721,6 +1765,62 @@ function addEvent(){
   showToast("✓ イベント追加");
   renderAll();
 }
+
+// ===== 新規イベント追加モーダル =====
+window.openEventModal = function(){
+  const m = document.getElementById("eventModal");
+  if(!m) return;
+  // 日付デフォルトは今日
+  const today = new Date().toISOString().slice(0,10);
+  document.getElementById("evm_name").value = "";
+  document.getElementById("evm_date").value = today;
+  document.getElementById("evm_code").value = "EV-" + today.slice(0,4) + "-" + today.slice(5,7) + today.slice(8,10);
+  document.getElementById("evm_cost").value = 0;
+  document.getElementById("evmHint").style.display = "none";
+
+  // 日付変更で自動コード生成
+  document.getElementById("evm_date").oninput = (e)=>{
+    const d = e.target.value;
+    if(d){
+      const auto = "EV-" + d.slice(0,4) + "-" + d.slice(5,7) + d.slice(8,10);
+      document.getElementById("evm_code").value = auto;
+      checkCodeConflict();
+    }
+  };
+  document.getElementById("evm_code").oninput = checkCodeConflict;
+
+  m.classList.add("show");
+  setTimeout(()=>document.getElementById("evm_name").focus(), 50);
+};
+function checkCodeConflict(){
+  const code = document.getElementById("evm_code").value.trim();
+  document.getElementById("evmHint").style.display = (code && EVENTS[code]) ? "block" : "none";
+}
+window.closeEventModal = function(){
+  document.getElementById("eventModal").classList.remove("show");
+};
+window.submitEventModal = function(){
+  const name = document.getElementById("evm_name").value.trim();
+  const date = document.getElementById("evm_date").value;
+  const code = document.getElementById("evm_code").value.trim();
+  const cost = Number(document.getElementById("evm_cost").value)||0;
+  if(!name){ showToast("イベント名を入力","err"); return; }
+  if(!date){ showToast("開催日を入力","err"); return; }
+  if(!/^EV-\d{4}-\d{4}$/.test(code)){ showToast("コード形式 EV-YYYY-MMDD","err"); return; }
+  EVENTS[code] = {name,date,cost};
+  saveEvents(EVENTS);
+  closeEventModal();
+  showToast(`✓ ${name} を追加しました`);
+  renderAll();
+  // 追加したイベントを即時表示
+  setTimeout(()=>{
+    document.querySelectorAll("#tabs .tab").forEach(b=>b.classList.remove("active"));
+    document.querySelector('[data-tab="event"]').classList.add("active");
+    document.querySelectorAll(".section").forEach(s=>s.classList.remove("active"));
+    document.getElementById("sec-event").classList.add("active");
+    if(typeof showEvent === "function") showEvent(code);
+  }, 100);
+};
 function updateEventCost(code, val){
   const cost = Number(val)||0;
   if(!EVENTS[code]) return;
