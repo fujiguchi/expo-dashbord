@@ -1,104 +1,105 @@
-# Event Meishi App — Static Deploy
+# 🚀 Event Meishi App — Render デプロイ
 
-イベント名刺管理アプリ v1.0 の静的サイトデプロイ用パッケージです。
-
-## 構成
-
-```
-deploy/
-├── index.html        ← アプリ本体（単一HTML / 70KB）
-├── render.yaml       ← Render静的サイト設定
-├── .gitignore
-└── README.md         ← このファイル
-```
-
-外部依存：Chart.js は CDN（jsdelivr）から取得します。インターネット接続必須。
+イベント名刺管理アプリ v1.0 を Render に公開するためのパッケージです。
 
 ---
 
-## Render デプロイ手順
+## 🎯 一番カンタンな手順（推奨）
 
-### 方法A：GitHubリポジトリ経由（推奨・継続更新できる）
+このフォルダ（`deploy/`）の中で **`PUSH-TO-RENDER.ps1`** を実行。
+ガイドに従って GitHubユーザー名 → リポジトリ作成 → 自動push → Render UI を開く まで誘導されます。
 
-#### 1. GitHubリポジトリを作る
+```
+1. deploy/ フォルダで右クリック → 「PowerShellで実行」（PUSH-TO-RENDER.ps1）
+2. GitHubユーザー名を入力
+3. 開いたGitHubで「event-meishi-app」リポジトリ作成（READMEなどチェックなし）
+4. スクリプトに戻ってEnter → 自動push
+5. 開いたRenderで「Create Static Site」クリック
+6. 完了：https://event-meishi-app.onrender.com で公開
+```
 
-ローカルでこのフォルダがgit初期化済みです（commit済み）。
-GitHub に新規リポジトリを作って、リモート追加→push します。
+**所要時間：3〜5分**
+
+---
+
+## 構成ファイル
+
+```
+deploy/
+├── PUSH-TO-RENDER.ps1            ← 🚀 これを実行
+├── index.html                     ← アプリ本体（125KB / 373件データ埋め込み済み）
+├── 移行データ_EV-2025-1210.csv   ← Japan BUILD 2025 元データ（参考用）
+├── render.yaml                    ← Render 設定
+├── .gitignore
+└── README.md                      ← このファイル
+```
+
+外部依存：Chart.js は CDN（jsdelivr）から取得。インターネット接続必須。
+
+---
+
+## 認証ハマったとき
+
+GitHub の認証は最近 Personal Access Token (PAT) が必要：
+
+1. https://github.com/settings/tokens/new
+2. Note: `event-meishi-app-deploy`
+3. Expiration: お好み（90日推奨）
+4. Scopes: `repo` だけチェック
+5. Generate token → コピー
+6. push時にパスワードを聞かれたら、**パスワード代わりにこのトークンを貼り付け**
+
+---
+
+## 手動でやる場合（PowerShell使わず）
 
 ```bash
-cd deploy
+# 1. GitHubで event-meishi-app という空リポジトリを作成
+#    → https://github.com/new
+
+# 2. このフォルダで以下を実行
 git remote add origin https://github.com/<あなたのID>/event-meishi-app.git
 git branch -M main
 git push -u origin main
 ```
 
-> ※認証エラーが出る場合は GitHub の Personal Access Token を使うか、GitHub CLI (`gh repo create event-meishi-app --public --source=. --push`) で一発作成
+```
+3. Render（render.com）にログイン
+4. New + → Static Site
+5. event-meishi-app リポジトリを選択
+6. 設定はそのまま → Create
+```
 
-#### 2. Render側で接続
+---
 
-1. https://render.com にログイン（or 新規登録）
-2. 「**New +**」→「**Static Site**」
-3. GitHub連携を許可して、`event-meishi-app` リポジトリを選択
-4. 設定：
-   - **Name**: `event-meishi-app`（任意）
-   - **Branch**: `main`
-   - **Root Directory**: 空欄
-   - **Build Command**: 空欄（静的なのでビルド不要）
-   - **Publish Directory**: `./`
-5. 「**Create Static Site**」をクリック
-6. 数十秒で `https://event-meishi-app.onrender.com` に公開される
+## デプロイ後
 
-> render.yaml が自動検出されるので、手動設定は最小限でOK。
+### 更新するとき
 
-#### 3. 更新
-
-ローカルでファイルを編集 → git commit & push するだけで自動再デプロイ。
+ローカルでファイル編集 → commit & push するだけで自動再デプロイ。
 
 ```bash
 git add .
-git commit -m "Update app"
+git commit -m "Update"
 git push
 ```
 
----
+### カスタムドメイン
 
-### 方法B：手動アップロード（最速・継続更新は手動）
-
-GitHubを使わず、直接Renderにアップロードする方法もあります。
-
-1. https://render.com → 「**New +**」→「**Static Site**」
-2. 「Deploy without Git」 or 「Upload」 オプションを選択
-3. このフォルダごとアップロード（または index.html だけでOK）
-4. 完了
+Render の Settings → Custom Domain で独自ドメイン設定可。
+例：`meishi.bridge-one.co.jp` → CNAME で `event-meishi-app.onrender.com` を指定。
 
 ---
 
-## カスタムドメイン
+## ⚠ 重要な注意
 
-Renderの管理画面 → Settings → Custom Domain で独自ドメイン設定可能。
+**現在はクライアントサイドのみ動作（LocalStorage保存）。**
+- 端末ごとにデータが別々（共有されない）
+- ブラウザのキャッシュクリアで消える
+- 本番運用には **バックエンドAPI＋DB** への置き換えが必要（`開発引き継ぎ仕様書.pdf` 参照）
 
-例：`meishi.bridge-one.co.jp` を指定して、お持ちのドメインのDNSにCNAMEで `event-meishi-app.onrender.com` を設定。
-
----
-
-## 注意事項
-
-- **データはブラウザのLocalStorageに保存**されます。サーバーには保存されません。
-- 複数ユーザーで使う場合、データは共有されません（端末ごとに別）。
-- 本番運用時は **バックエンドAPI＋DB** に差し替える必要があります（仕様書 `開発引き継ぎ仕様書.pdf` 参照）。
-- HTTPS で配信されるので、本番運用前提のテストには使えます。
+Renderに公開するのは「**社内デモ・関係者共有・要件すり合わせ用**」と割り切るのが正解。
 
 ---
 
-## 動作確認
-
-ローカルでも単体で動きます：
-
-```bash
-# index.html をダブルクリック、または
-python -m http.server 8000  # → http://localhost:8000
-```
-
----
-
-Generated 2026/06/16
+Generated 2026/06/16 / fujiguchi
