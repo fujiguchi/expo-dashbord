@@ -1340,7 +1340,7 @@ async function deleteMeishi(id){
 }
 async function upsertEvent(code, ev){
   if(!SUPA) return;
-  const {error} = await SUPA.from("events").upsert([{code, name:ev.name, date:ev.date, cost:Number(ev.cost)||0, participants:ev.participants||[]}],{onConflict:"code"});
+  const {error} = await SUPA.from("events").upsert([{code, name:ev.name, date: (ev.date && /^\d{4}-\d{2}-\d{2}/.test(ev.date)) ? ev.date.slice(0,10) : null, cost:Number(ev.cost)||0, participants:ev.participants||[]}],{onConflict:"code"});
   if(error) console.error("upsert event:", error);
 }
 async function deleteEventRemote(code){
@@ -1363,7 +1363,7 @@ function saveData(d){
 function saveEvents(e){
   saveEventsLocal(e);
   if(SUPA){
-    const rows = Object.entries(e).map(([code,ev])=>({code, name:ev.name, date:ev.date, cost:Number(ev.cost)||0, participants:ev.participants||[]}));
+    const rows = Object.entries(e).map(([code,ev])=>({code, name:ev.name, date: (ev.date && /^\d{4}-\d{2}-\d{2}/.test(ev.date)) ? ev.date.slice(0,10) : null, cost:Number(ev.cost)||0, participants:ev.participants||[]}));
     SUPA.from("events").upsert(rows,{onConflict:"code"}).then(({error})=>{
       if(error){ console.error(error); SYNC_STATE="error"; }
       else { SYNC_STATE="synced"; }
@@ -1925,7 +1925,7 @@ async function pushAllToRemote(){
   if(!SUPA){ showToast("Supabase未接続","err"); return; }
   if(!confirm(`ローカルの ${DATA.length}件 + ${Object.keys(EVENTS).length}イベント をクラウドに送信します。よろしいですか？`)) return;
   SYNC_STATE="syncing"; updateSyncBadge();
-  const evRows = Object.entries(EVENTS).map(([code,ev])=>({code, name:ev.name, date:ev.date, cost:Number(ev.cost)||0, participants:ev.participants||[]}));
+  const evRows = Object.entries(EVENTS).map(([code,ev])=>({code, name:ev.name, date: (ev.date && /^\d{4}-\d{2}-\d{2}/.test(ev.date)) ? ev.date.slice(0,10) : null, cost:Number(ev.cost)||0, participants:ev.participants||[]}));
   const r1 = await SUPA.from("events").upsert(evRows,{onConflict:"code"});
   const r2 = await SUPA.from("meishi").upsert(DATA,{onConflict:"id"});
   if(r1.error||r2.error){
