@@ -319,12 +319,33 @@ body.show-detail-cols .detail-col{display:table-cell}
 <div class="page" id="appBody" style="display:none">
 
   <div class="tabs" id="tabs">
+    <button class="tab" data-tab="today">📅 今日</button>
     <button class="tab active" data-tab="overview">📊 全体</button>
     <button class="tab" data-tab="staff">👥 スタッフ別</button>
     <button class="tab" data-tab="event">🎪 イベント別</button>
     <button class="tab" data-tab="records">📇 名刺レコード</button>
     <button class="tab special" data-tab="admin">⚙ 管理 / 移行</button>
   </div>
+
+  <!-- ============ 今日 ============ -->
+  <section class="section" id="sec-today">
+    <div class="panel" style="text-align:center;padding:28px 20px;background:linear-gradient(135deg,var(--primary-50) 0%,#fff 100%)">
+      <button class="btn primary" onclick="openForm()" style="font-size:18px;padding:18px 36px;border-radius:14px;box-shadow:0 6px 20px rgba(79,70,229,.4)">＋ 名刺を登録</button>
+      <div style="font-size:11px;color:var(--muted);margin-top:8px">タップでカメラOCRも使えます</div>
+    </div>
+
+    <div class="kpis" id="todayKpis" style="grid-template-columns:repeat(4,1fr);margin-top:16px"></div>
+
+    <div class="panel" style="margin-top:14px">
+      <h2 id="todayListTitle">📇 今日 あなたが登録した名刺</h2>
+      <div id="todayList"></div>
+    </div>
+
+    <div class="panel" style="margin-top:14px">
+      <h2>🎪 開催中のイベント</h2>
+      <div id="todayEvents" style="display:flex;flex-direction:column;gap:8px"></div>
+    </div>
+  </section>
 
   <!-- ============ 全体 ============ -->
   <section class="section active" id="sec-overview">
@@ -1533,6 +1554,16 @@ function showApp(){
   // 非管理者は「+名刺登録」ボタンは見えるが、他のタブもデータが自分のだけに絞られる
   document.body.classList.toggle("user-mode", USER.role!=="admin");
 
+  // スマホ or 一般メンバー → 「今日」タブをデフォルトに
+  const isMobile = window.matchMedia("(max-width:640px)").matches;
+  if(isMobile || USER.role!=="admin"){
+    document.querySelectorAll("#tabs .tab").forEach(b=>b.classList.remove("active"));
+    document.querySelectorAll(".section").forEach(s=>s.classList.remove("active"));
+    const todayTab = document.querySelector('[data-tab="today"]');
+    const todaySec = document.getElementById("sec-today");
+    if(todayTab && todaySec){ todayTab.classList.add("active"); todaySec.classList.add("active"); }
+  }
+
   // Supabase 接続中ならクラウドから最新を引いてくる
   updateSyncBadge();
   if(SUPA){
@@ -1914,7 +1945,7 @@ let charts = {};
 function destroyChart(k){ if(charts[k]){ charts[k].destroy(); delete charts[k]; } }
 
 function renderAll(){
-  renderOverview(); renderStaff(); renderEventSelector(); renderRecords(); renderAdmin();
+  renderToday(); renderOverview(); renderStaff(); renderEventSelector(); renderRecords(); renderAdmin();
   document.getElementById("dataCount").textContent = DATA.length;
   document.getElementById("eventDataCount").textContent = Object.keys(EVENTS).length;
   const modeEl = document.getElementById("storageMode");
@@ -1973,6 +2004,85 @@ async function pushAllToRemote(){
   } else {
     SYNC_STATE="synced"; updateSyncBadge();
     showToast(`✓ ${DATA.length}件 / ${evRows.length}イベント 送信完了`);
+  }
+}
+
+// ========== TODAY (mobile-first) ==========
+function renderToday(){
+  const all = (typeof getVisibleData === 'function') ? getVisibleData() : DATA;
+  const today = new Date().toISOString().slice(0,10); // YYYY-MM-DD
+  const isMine = r => USER.role==="admin" ? true : canSeeRecord(r);
+  // 日付判定: rec.dt が YYYY-MM-DD で始まる
+  const matchDay = (r,d) => (r.dt||"").startsWith(d) || (r.dt||"").startsWith(d.replace(/-/g,"/"));
+  const myToday = all.filter(r => isMine(r) && matchDay(r,today));
+
+  // 今週・今月
+  const now = new Date();
+  const week = new Date(now); week.setDate(now.getDate()-now.getDay()); // 日曜
+  const weekStr = week.toISOString().slice(0,10);
+  const monthStr = today.slice(0,7);
+  const myWeek = all.filter(r => isMine(r) && ((r.dt||"").slice(0,10).replace(/\//g,"-") >= weekStr));
+  const myMonth = all.filter(r => isMine(r) && (r.dt||"").slice(0,7).replace(/\//g,"-") === monthStr);
+
+  // KPI
+  const presToday = myToday.filter(r=>r.isPres).length;
+  const execToday = myToday.filter(r=>r.isExec).length;
+  document.getElementById("todayKpis").innerHTML = [
+    {l:"📅 今日",val:fmtNum(myToday.length),u:"枚",cls:""},
+    {l:"今週",val:fmtNum(myWeek.length),u:"枚"},
+    {l:"今月",val:fmtNum(myMonth.length),u:"枚"},
+    {l:"今日 社長/役員",val:`${presToday}/${execToday}`,cls:"pres"},
+  ].map(k=>`<div class="kpi ${k.cls||''}"><div class="label">${k.l}</div><div class="val">${k.val}<span class="unit">${k.u||''}</span></div></div>`).join("");
+
+  // 今日の一覧
+  document.getElementById("todayListTitle").textContent = USER.role==="admin"
+    ? `📇 今日 全社で登録された名刺（${myToday.length}件）`
+    : `📇 今日 あなたが登録した名刺（${myToday.length}件）`;
+  const listEl = document.getElementById("todayList");
+  if(!myToday.length){
+    listEl.innerHTML = '<div class="sub" style="text-align:center;padding:20px">まだ今日の登録はありません。<br>上の「＋ 名刺を登録」から開始してください</div>';
+  } else {
+    listEl.innerHTML = myToday.slice(0,30).map(r=>{
+      const time = (r.dt||"").slice(11,16) || "—";
+      const flags = [
+        r.isPres?'<span class="chip pres" style="font-size:10px">👑</span>':'',
+        r.isExec?'<span class="chip" style="font-size:10px;background:#F3E8FF;color:#7E22CE">🎖</span>':'',
+        r.appt==="◯"?'<span class="chip ok" style="font-size:10px">アポ◯</span>':'',
+      ].filter(Boolean).join(" ");
+      const ev = EVENTS[r.event];
+      return `<div style="padding:10px 12px;background:#FAFBFD;border:1px solid var(--line);border-radius:10px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;gap:10px">
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:700;color:var(--navy);font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+            ${r.company||"(社名未入力)"} ${flags}
+          </div>
+          <div style="color:var(--muted);font-size:11px;margin-top:2px">
+            ${r.title?r.title+" ":""}${r.person||""} ${ev?'・'+ev.name:''} ${time}
+          </div>
+        </div>
+        <button class="btn sm secondary" onclick="openForm(${r.id})">✏</button>
+      </div>`;
+    }).join("") + (myToday.length>30 ? `<div class="sub" style="text-align:center;margin-top:8px">…他 ${myToday.length-30}件</div>` : "");
+  }
+
+  // 開催中イベント（today範囲内）
+  const todayEvents = Object.entries(EVENTS).filter(([_,ev])=>{
+    if(!ev.date) return false;
+    return ev.date === today || (Math.abs((new Date(ev.date) - new Date(today))/86400000) <= 1);
+  }).sort((a,b)=>(a[1].date||"").localeCompare(b[1].date||""));
+  const evEl = document.getElementById("todayEvents");
+  if(!todayEvents.length){
+    evEl.innerHTML = '<div class="sub">今日・昨日・明日のイベントなし</div>';
+  } else {
+    evEl.innerHTML = todayEvents.map(([code,ev])=>{
+      const cnt = all.filter(r=>r.event===code).length;
+      return `<div onclick="goEvent('${code}')" style="padding:12px 14px;background:var(--primary-50);border:1px solid #C7D2FE;border-radius:10px;cursor:pointer;display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-weight:700;color:var(--navy)">${ev.name}</div>
+          <div style="color:var(--muted);font-size:11px">${ev.date} ／ ${cnt}件登録</div>
+        </div>
+        <div style="color:var(--primary)">▶</div>
+      </div>`;
+    }).join("");
   }
 }
 
