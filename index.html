@@ -696,6 +696,582 @@ body.show-detail-cols .detail-col{display:table-cell}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script>
 // =========================================================
+// ===== MEMBER MASTER START =====
+// 自動生成（_gen_member_master.py から）
+// 在籍中・メールあり のメンバーのみ。76 名
+const MEMBER_MASTER = {
+  "yamanaka@bridge-one.co.jp": {
+    "name": "山中健太",
+    "shortName": "山中",
+    "brand": "ビーバーズ",
+    "dept": "建設　第1部",
+    "level": "プリンシパル"
+  },
+  "shibata@bridge-one.co.jp": {
+    "name": "柴田基希",
+    "shortName": "柴田",
+    "brand": "ビーバーズ",
+    "dept": "建設　第2部",
+    "level": "プリンシパル"
+  },
+  "miyake@bridge-one.co.jp": {
+    "name": "三宅輝",
+    "shortName": "三宅",
+    "brand": "ビーバーズ",
+    "dept": "建設　関西支社",
+    "level": "プリンシパル"
+  },
+  "ito@bridge-one.co.jp": {
+    "name": "伊藤悠人",
+    "shortName": "伊藤",
+    "brand": "メーカーズ",
+    "dept": "製造　第1部",
+    "level": "プリンシパル"
+  },
+  "ohashi@bridge-one.co.jp": {
+    "name": "大橋黎",
+    "shortName": "大橋",
+    "brand": "メーカーズ",
+    "dept": "製造　第1部",
+    "level": "アソシエイト"
+  },
+  "agata@bridge-one.co.jp": {
+    "name": "アガタダニエルイサオ",
+    "shortName": "アガタダニエルイサオ",
+    "brand": "メーカーズ",
+    "dept": "製造　第1部",
+    "level": "アソシエイト"
+  },
+  "mori@bridge-one.co.jp": {
+    "name": "森悠紀",
+    "shortName": "森悠",
+    "brand": "ビーバーズ",
+    "dept": "建設　第2部",
+    "level": "コンサルタント"
+  },
+  "r-yamamoto@bridge-one.co.jp": {
+    "name": "山本倫",
+    "shortName": "山本",
+    "brand": "ビーバーズ",
+    "dept": "建設　第1部",
+    "level": "アソシエイト"
+  },
+  "s-sato@bridge-one.co.jp": {
+    "name": "佐藤誠英",
+    "shortName": "佐藤",
+    "brand": "ビーバーズ",
+    "dept": "建設　第2部",
+    "level": "アソシエイト"
+  },
+  "toyoizumi@bridge-one.co.jp": {
+    "name": "豊泉亮平",
+    "shortName": "豊泉",
+    "brand": "ランダーズ",
+    "dept": "不動産　第1部",
+    "level": "アナリスト"
+  },
+  "tsuji@bridge-one.co.jp": {
+    "name": "辻宅真",
+    "shortName": "辻宅",
+    "brand": "ビーバーズ",
+    "dept": "建設　関西支社",
+    "level": "アソシエイト"
+  },
+  "kumakura@bridge-one.co.jp": {
+    "name": "熊倉和希",
+    "shortName": "熊倉",
+    "brand": "ビーバーズ",
+    "dept": "建設　関西支社",
+    "level": "アソシエイト"
+  },
+  "r-suzuki@bridge-one.co.jp": {
+    "name": "鈴木隆太郎",
+    "shortName": "鈴木",
+    "brand": "メーカーズ",
+    "dept": "製造　第1部",
+    "level": "プリンシパル"
+  },
+  "kato@bridge-one.co.jp": {
+    "name": "加藤友奏",
+    "shortName": "加藤",
+    "brand": "ビーバーズ",
+    "dept": "建設　第3部",
+    "level": "コンサルタント"
+  },
+  "h-suzuki@bridge-one.co.jp": {
+    "name": "鈴木駿斗",
+    "shortName": "鈴木",
+    "brand": "ビーバーズ",
+    "dept": "建設　第4部",
+    "level": "プリンシパル"
+  },
+  "oguri@bridge-one.co.jp": {
+    "name": "小栗慎也",
+    "shortName": "小栗",
+    "brand": "ビーバーズ",
+    "dept": "建設　第1部",
+    "level": "コンサルタント"
+  },
+  "tsushima@bridge-one.co.jp": {
+    "name": "對馬健斗",
+    "shortName": "對馬",
+    "brand": "ビーバーズ",
+    "dept": "建設　第2部",
+    "level": "アソシエイト"
+  },
+  "t-mori@bridge-one.co.jp": {
+    "name": "森崇紘",
+    "shortName": "森崇",
+    "brand": "ビーバーズ",
+    "dept": "建設　第2部",
+    "level": "アナリスト"
+  },
+  "sakai@bridge-one.co.jp": {
+    "name": "酒井大鷹",
+    "shortName": "酒井",
+    "brand": "ランダーズ",
+    "dept": "不動産　第1部",
+    "level": "プリンシパル"
+  },
+  "kanno@bridge-one.co.jp": {
+    "name": "菅野郁也",
+    "shortName": "菅野",
+    "brand": "メーカーズ",
+    "dept": "製造　第1部",
+    "level": "アナリスト"
+  },
+  "morimoto@bridge-one.co.jp": {
+    "name": "森本勇亮",
+    "shortName": "森本",
+    "brand": "ビーバーズ",
+    "dept": "建設　第2部",
+    "level": "アソシエイト"
+  },
+  "karino_ryuga@bridge-one.co.jp": {
+    "name": "狩野瑠我",
+    "shortName": "狩野",
+    "brand": "ビーバーズ",
+    "dept": "建設　第2部",
+    "level": "アプレンティス"
+  },
+  "sango@bridge-one.co.jp": {
+    "name": "三五龍太郎",
+    "shortName": "三五",
+    "brand": "ビーバーズ",
+    "dept": "建設　第2部",
+    "level": "アソシエイト"
+  },
+  "sakurai_naoki@bridge-one.co.jp": {
+    "name": "桜井直生",
+    "shortName": "桜井",
+    "brand": "ランダーズ",
+    "dept": "不動産　第1部",
+    "level": "アソシエイト"
+  },
+  "morito_tatsuo@bridge-one.co.jp": {
+    "name": "森戸辰男",
+    "shortName": "森戸",
+    "brand": "プロフェッションズ",
+    "dept": "士業　第1部",
+    "level": "AS"
+  },
+  "hirano_yunosuke@bridge-one.co.jp": {
+    "name": "平野祐之助",
+    "shortName": "平野",
+    "brand": "メーカーズ",
+    "dept": "製造　第1部",
+    "level": "アソシエイト"
+  },
+  "kobayashi_kaito@bridge-one.co.jp": {
+    "name": "小林海斗",
+    "shortName": "小林",
+    "brand": "ビーバーズ",
+    "dept": "建設　関西支社",
+    "level": "アソシエイト"
+  },
+  "hamamoto_taichi@bridge-one.co.jp": {
+    "name": "濵本太一",
+    "shortName": "濵本",
+    "brand": "ビーバーズ",
+    "dept": "建設　関西支社",
+    "level": "アプレンティス"
+  },
+  "yamada_kohei@bridge-one.co.jp": {
+    "name": "山田航平",
+    "shortName": "山田",
+    "brand": "プロフェッションズ",
+    "dept": "士業　第1部",
+    "level": "AS"
+  },
+  "kato_hiroya@bridge-one.co.jp": {
+    "name": "加藤滉弥",
+    "shortName": "加藤",
+    "brand": "ビーバーズ",
+    "dept": "建設　第2部",
+    "level": "アナリスト"
+  },
+  "nagai_kohei@bridge-one.co.jp": {
+    "name": "永井康平",
+    "shortName": "永井",
+    "brand": "ランダーズ",
+    "dept": "不動産　第1部",
+    "level": "アソシエイト"
+  },
+  "chikaraishi_ryo@bridge-one.co.jp": {
+    "name": "力石凌",
+    "shortName": "力石",
+    "brand": "ビーバーズ",
+    "dept": "建設　関西支社",
+    "level": "アプレンティス"
+  },
+  "mishiro@bridge-one.co.jp": {
+    "name": "三代貴一",
+    "shortName": "三代",
+    "brand": "プロフェッションズ",
+    "dept": "士業　第1部",
+    "level": "AS"
+  },
+  "sasaki_tsuyoshi@bridge-one.co.jp": {
+    "name": "佐々木剛",
+    "shortName": "佐々木剛",
+    "brand": "メーカーズ",
+    "dept": "製造　第1部",
+    "level": "アナリスト"
+  },
+  "inoue_yuito@bridge-one.co.jp": {
+    "name": "井上結都",
+    "shortName": "井上",
+    "brand": "ビーバーズ",
+    "dept": "建設　第3部",
+    "level": "アナリスト"
+  },
+  "shimizu_tokuhiro@bridge-one.co.jp": {
+    "name": "清水徳浩",
+    "shortName": "清水",
+    "brand": "プロメディーズ",
+    "dept": "医療　第1部",
+    "level": "アソシエイト"
+  },
+  "ohba_keisuke@bridge-one.co.jp": {
+    "name": "⼤庭啓輔",
+    "shortName": "⼤庭啓輔",
+    "brand": "ビーバーズ",
+    "dept": "建設　第3部",
+    "level": "アプレンティス"
+  },
+  "tsuchiya_ryusei@bridge-one.co.jp": {
+    "name": "土屋瑠征",
+    "shortName": "土屋",
+    "brand": "ビーバーズ",
+    "dept": "建設　第4部",
+    "level": "アナリスト"
+  },
+  "kimura_taishi@bridge-one.co.jp": {
+    "name": "木村大心",
+    "shortName": "木村",
+    "brand": "ビーバーズ",
+    "dept": "建設　第4部",
+    "level": "アナリスト"
+  },
+  "miki_yusuke@bridge-one.co.jp": {
+    "name": "三木悠輔",
+    "shortName": "三木",
+    "brand": "ビーバーズ",
+    "dept": "建設　第3部",
+    "level": "アナリスト"
+  },
+  "ito_masaharu@bridge-one.co.jp": {
+    "name": "伊藤雅治",
+    "shortName": "伊藤",
+    "brand": "ビーバーズ",
+    "dept": "建設　第1部",
+    "level": "アプレンティス"
+  },
+  "uchimura_taichi@bridge-one.co.jp": {
+    "name": "内村太一",
+    "shortName": "内村",
+    "brand": "ビーバーズ",
+    "dept": "建設　関西支社",
+    "level": "アナリスト"
+  },
+  "tachibana_syota@bridge-one.co.jp": {
+    "name": "立花 翔太",
+    "shortName": "立花",
+    "brand": "キーワーカーズ",
+    "dept": "キーワーカーズ　第1部",
+    "level": "アソシエイト"
+  },
+  "fukuda_riku@bridge-one.co.jp": {
+    "name": "福田凌久",
+    "shortName": "福田",
+    "brand": "ビーバーズ",
+    "dept": "建設　第2部",
+    "level": "アプレンティス"
+  },
+  "nakano_taiga@bridge-one.co.jp": {
+    "name": "中野太賀",
+    "shortName": "中野",
+    "brand": "ビーバーズ",
+    "dept": "建設　関西支社",
+    "level": "アプレンティス"
+  },
+  "takaishi_masaki@bridge-one.co.jp": {
+    "name": "高石 雅喜",
+    "shortName": "高石",
+    "brand": "金融",
+    "dept": "金融総合ソリューション",
+    "level": "未定"
+  },
+  "kanai_suzuka@bridge-one.co.jp": {
+    "name": "金井鈴夏",
+    "shortName": "金井",
+    "brand": "プロフェッションズ",
+    "dept": "士業　第1部",
+    "level": "アソシエイト"
+  },
+  "hagimoto_ryohei@bridge-one.co.jp": {
+    "name": "萩本 涼平",
+    "shortName": "萩本",
+    "brand": "金融",
+    "dept": "金融総合ソリューション",
+    "level": "未定"
+  },
+  "horiuchi_kanshi@bridge-one.co.jp": {
+    "name": "堀内 貫志",
+    "shortName": "堀内",
+    "brand": "ビーバーズ",
+    "dept": "建設　関西支社",
+    "level": "アプレンティス"
+  },
+  "horiguchi_kaito@bridge-one.co.jp": {
+    "name": "堀口 海斗",
+    "shortName": "堀口",
+    "brand": "ビーバーズ",
+    "dept": "建設　第2部",
+    "level": "アプレンティス"
+  },
+  "itakura_ayumu@bridge-one.co.jp": {
+    "name": "板倉 歩夢",
+    "shortName": "板倉",
+    "brand": "ビーバーズ",
+    "dept": "建設　第1部",
+    "level": "アナリスト"
+  },
+  "kashiwabara_soto@bridge-one.co.jp": {
+    "name": "柏原 颯星",
+    "shortName": "柏原",
+    "brand": "ビーバーズ",
+    "dept": "建設　第3部",
+    "level": "アナリスト"
+  },
+  "hagino_kosei@bridge-one.co.jp": {
+    "name": "萩野 滉成",
+    "shortName": "萩野",
+    "brand": "ビーバーズ",
+    "dept": "建設　第2部",
+    "level": "アプレンティス"
+  },
+  "umehara_souta@bridge-one.co.jp": {
+    "name": "梅原 壮太",
+    "shortName": "梅原",
+    "brand": "ビーバーズ",
+    "dept": "建設　第1部",
+    "level": "アプレンティス"
+  },
+  "tsuji_hiroki@bridge-one.co.jp": {
+    "name": "辻 弘樹",
+    "shortName": "辻",
+    "brand": "プロフェッションズ",
+    "dept": "士業　第1部",
+    "level": "アプレンティス"
+  },
+  "tsukashita_koki@bridge-one.co.jp": {
+    "name": "塚下 宏希",
+    "shortName": "塚下",
+    "brand": "メーカーズ",
+    "dept": "製造　第1部",
+    "level": "アプレンティス"
+  },
+  "nagao_soraki@bridge-one.co.jp": {
+    "name": "長尾 宙輝",
+    "shortName": "長尾",
+    "brand": "メーカーズ",
+    "dept": "製造　第1部",
+    "level": "アプレンティス"
+  },
+  "hasegawa_yu@bridge-one.co.jp": {
+    "name": "長谷川 優",
+    "shortName": "長谷川",
+    "brand": "メーカーズ",
+    "dept": "製造　第1部",
+    "level": "アプレンティス"
+  },
+  "nakamura_yuga@bridge-one.co.jp": {
+    "name": "中村 勇雅",
+    "shortName": "中村",
+    "brand": "金融",
+    "dept": "金融総合ソリューション",
+    "level": "未定"
+  },
+  "takemoto_yoshikazu@bridge-one.co.jp": {
+    "name": "竹本 善一",
+    "shortName": "竹本",
+    "brand": "ビーバーズ",
+    "dept": "建設　第4部",
+    "level": "アプレンティス"
+  },
+  "asano_sena@bridge-one.co.jp": {
+    "name": "浅野 世凪",
+    "shortName": "浅野",
+    "brand": "ビーバーズ",
+    "dept": "建設　関西支社",
+    "level": "アプレンティス"
+  },
+  "izumi_atsuki@bridge-one.co.jp": {
+    "name": "泉 篤希",
+    "shortName": "泉",
+    "brand": "ビーバーズ",
+    "dept": "建設　第1部",
+    "level": "アプレンティス"
+  },
+  "akaishi_yamato@bridge-one.co.jp": {
+    "name": "赤石 大和",
+    "shortName": "赤石",
+    "brand": "ビーバーズ",
+    "dept": "建設　第1部",
+    "level": "アプレンティス"
+  },
+  "kamiseida_maku@bridge-one.co.jp": {
+    "name": "上清田 蒔",
+    "shortName": "上清田",
+    "brand": "ビーバーズ",
+    "dept": "建設　関西支社",
+    "level": "アプレンティス"
+  },
+  "matsumura_kenta@bridge-one.co.jp": {
+    "name": "松村 謙汰",
+    "shortName": "松村",
+    "brand": "ビーバーズ",
+    "dept": "建設　関西支社",
+    "level": "アプレンティス"
+  },
+  "yamamoto_akio@bridge-one.co.jp": {
+    "name": "山本 朗生",
+    "shortName": "山本",
+    "brand": "ビーバーズ",
+    "dept": "建設　第4部",
+    "level": "アプレンティス"
+  },
+  "takano_tomoyuki@bridge-one.co.jp": {
+    "name": "高野 智之",
+    "shortName": "高野",
+    "brand": "ビーバーズ",
+    "dept": "建設　第4部",
+    "level": "アプレンティス"
+  },
+  "iwasawa_genki@bridge-one.co.jp": {
+    "name": "岩沢 元気",
+    "shortName": "岩沢",
+    "brand": "ビーバーズ",
+    "dept": "建設　第3部",
+    "level": "アプレンティス"
+  },
+  "iwai_nanaka@bridge-one.co.jp": {
+    "name": "岩井 菜々花",
+    "shortName": "岩井",
+    "brand": "ビーバーズ",
+    "dept": "建設　関西支社",
+    "level": "アプレンティス"
+  },
+  "kawahara_yuta@bridge-one.co.jp": {
+    "name": "河原 悠太",
+    "shortName": "河原",
+    "brand": "ビーバーズ",
+    "dept": "建設　関西支社",
+    "level": "アプレンティス"
+  },
+  "shimosako_hiroto@bridge-one.co.jp": {
+    "name": "下迫 大翔",
+    "shortName": "下迫",
+    "brand": "ビーバーズ",
+    "dept": "建設　関西支社",
+    "level": "アプレンティス"
+  },
+  "okamoto_daiki@bridge-one.co.jp": {
+    "name": "岡本 大輝",
+    "shortName": "岡本",
+    "brand": "ビーバーズ",
+    "dept": "建設　第2部",
+    "level": "アプレンティス"
+  },
+  "yokomizo_kento@bridge-one.co.jp": {
+    "name": "横溝 健斗",
+    "shortName": "横溝",
+    "brand": "ビーバーズ",
+    "dept": "建設　第3部",
+    "level": "アプレンティス"
+  },
+  "endo_tokisuke@bridge-one.co.jp": {
+    "name": "遠藤 凱介",
+    "shortName": "遠藤",
+    "brand": "ビーバーズ",
+    "dept": "建設　第2部",
+    "level": "アプレンティス"
+  },
+  "ito_shingo@bridge-one.co.jp": {
+    "name": "伊藤 慎悟",
+    "shortName": "伊藤",
+    "brand": "ビーバーズ",
+    "dept": "建設　第4部",
+    "level": "アプレンティス"
+  },
+  "hoshi_carlos@bridge-one.co.jp": {
+    "name": "ホシ カルロス",
+    "shortName": "ホシ",
+    "brand": "メーカーズ",
+    "dept": "製造　第1部",
+    "level": "アプレンティス"
+  }
+};
+
+
+// ===== 管理者リスト（ハードコード）=====
+const ADMIN_EMAILS = new Set([
+  "fujiguchi@bridge-one.co.jp",   // システム管理者
+  "toyoizumi@bridge-one.co.jp",   // 業務管理者
+  "yamanaka@bridge-one.co.jp",    // 業務管理者
+]);
+
+function lookupMember(email){
+  if(!email) return null;
+  const e = email.toLowerCase();
+  return MEMBER_MASTER[e] || null;
+}
+function isAdmin(email){
+  return ADMIN_EMAILS.has((email||"").toLowerCase());
+}
+// データ行が現在のUSERのものかチェック（管理者は全て見える）
+function canSeeRecord(rec){
+  if(!rec) return false;
+  if(!USER) return false;
+  if(USER.role === "admin") return true;
+  const s = (rec.staff||"").trim();
+  if(!s) return false;
+  // 完全一致
+  if(s === USER.fullName) return true;
+  if(s === USER.shortName) return true;
+  if(s === USER.emailPrefix) return true;
+  // 部分一致（古いデータの短縮姓に対応）
+  if(USER.fullName && USER.fullName.startsWith(s)) return true;
+  if(s.startsWith(USER.shortName)) return true;
+  return false;
+}
+function getVisibleData(){
+  if(!USER || USER.role==="admin") return DATA;
+  return DATA.filter(canSeeRecord);
+}
+// ===== MEMBER MASTER END =====
+
 // STORAGE  (LocalStorage + Supabase hybrid)
 // =========================================================
 const K_DATA   = "meishi_app_v1_data";
@@ -846,8 +1422,24 @@ function login(){
     errEl.textContent = `${ALLOWED_DOMAIN} のアカウントのみアクセス可能です`;
     errEl.style.display = "block"; return;
   }
-  const staff = email.split("@")[0];  // email prefix を担当者名として使う
-  USER = {email, staff, role:"admin", loginAt:new Date().toISOString()};
+  const isAdminUser = isAdmin(email);
+  const member = lookupMember(email);
+  if(!member && !isAdminUser){
+    errEl.innerHTML = `このメールアドレスはメンバーマスタに登録されていません。<br>管理者に連絡してください。`;
+    errEl.style.display = "block"; return;
+  }
+  const emailPrefix = email.split("@")[0];
+  USER = {
+    email, emailPrefix,
+    fullName: member ? member.name : emailPrefix,
+    shortName: member ? member.shortName : emailPrefix,
+    brand: member ? member.brand : "",
+    dept: member ? member.dept : "",
+    level: member ? member.level : "",
+    role: isAdminUser ? "admin" : "member",
+    loginAt: new Date().toISOString(),
+  };
+  USER.staff = USER.shortName;  // 互換: 既存コードで USER.staff を参照してる箇所のため
   localStorage.setItem(K_USER, JSON.stringify(USER));
   showApp();
 }
@@ -859,8 +1451,23 @@ function logout(){
   document.getElementById("appBody").style.display="none";
 }
 function showApp(){
-  // 旧形式（emailなし）のセッションは無効化して再ログインさせる
-  if(!USER || !USER.email || !USER.email.endsWith(ALLOWED_DOMAIN)){
+  // 旧形式（emailなし or roleなし）のセッションは無効化して再ログインさせる
+  if(!USER || !USER.email || !USER.email.endsWith(ALLOWED_DOMAIN) || !USER.role){
+    localStorage.removeItem(K_USER); USER = null;
+    document.getElementById("loginScreen").style.display="flex";
+    document.getElementById("topbar").style.display="none";
+    document.getElementById("appBody").style.display="none";
+    return;
+  }
+  // メンバーマスタに合わせて情報を再取得（マスタ更新時の追従）
+  const member = lookupMember(USER.email);
+  if(member){
+    USER.fullName = member.name; USER.shortName = member.shortName;
+    USER.brand = member.brand; USER.dept = member.dept; USER.level = member.level;
+    USER.staff = USER.shortName;
+    localStorage.setItem(K_USER, JSON.stringify(USER));
+  } else if(!isAdmin(USER.email)){
+    // マスタから消えてた → ログアウト
     localStorage.removeItem(K_USER); USER = null;
     document.getElementById("loginScreen").style.display="flex";
     document.getElementById("topbar").style.display="none";
@@ -870,12 +1477,16 @@ function showApp(){
   document.getElementById("loginScreen").style.display="none";
   document.getElementById("topbar").style.display="flex";
   document.getElementById("appBody").style.display="block";
-  document.getElementById("userName").textContent = USER.email;
-  document.getElementById("userRole").textContent = "管理者";
-  document.getElementById("userRole").className = "role admin";
+  // 表示：氏名（部署）
+  const nameHtml = USER.fullName + (USER.dept ? `<span style="color:var(--muted-2);font-weight:400;margin-left:6px">/ ${USER.dept}</span>` : "");
+  document.getElementById("userName").innerHTML = nameHtml;
+  document.getElementById("userRole").textContent = USER.role==="admin" ? "管理者" : (USER.level||"メンバー");
+  document.getElementById("userRole").className = "role" + (USER.role==="admin" ? " admin" : "");
   // 管理タブは管理者のみ表示
   const adminTab = document.querySelector('[data-tab="admin"]');
-  adminTab.style.display = "";
+  if(adminTab) adminTab.style.display = USER.role==="admin" ? "" : "none";
+  // 非管理者は「+名刺登録」ボタンは見えるが、他のタブもデータが自分のだけに絞られる
+  document.body.classList.toggle("user-mode", USER.role!=="admin");
 
   // Supabase 接続中ならクラウドから最新を引いてくる
   updateSyncBadge();
@@ -1317,6 +1928,7 @@ async function pushAllToRemote(){
 
 // ========== OVERVIEW ==========
 function renderOverview(){
+  const DATA = (typeof getVisibleData === 'function') ? getVisibleData() : (window.DATA || []);
   const total = DATA.length;
   const pres = DATA.filter(m=>m.isPres).length;
   const appt = DATA.filter(m=>m.appt==="◯").length;
@@ -1414,6 +2026,7 @@ function renderOverview(){
 
 // ========== STAFF ==========
 function renderStaff(){
+  const DATA = (typeof getVisibleData === 'function') ? getVisibleData() : (window.DATA || []);
   const map={};
   DATA.forEach(m=>{
     if(!map[m.staff]) map[m.staff]={name:m.staff,events:new Set(),total:0,pres:0,appt:0,counter:0,chase:0,sales:0};
@@ -1492,6 +2105,7 @@ window.setPivot = function(btn, metric){
 };
 
 function renderPivot(staffList){
+  const DATA = (typeof getVisibleData === 'function') ? getVisibleData() : (window.DATA || []);
   const evs = Object.entries(EVENTS).sort((a,b)=>(a[1].date||"").localeCompare(b[1].date||""));
   if(!evs.length || !staffList.length){
     document.querySelector("#tblPivot thead").innerHTML = "";
@@ -1539,6 +2153,7 @@ function renderPivot(staffList){
 }
 
 window.showPersonal = function(staff){
+  const DATA = (typeof getVisibleData === 'function') ? getVisibleData() : (window.DATA || []);
   document.getElementById("personalTitle").textContent = `個人詳細：${staff}さん`;
   const rows = DATA.filter(m=>m.staff===staff);
   const pres = rows.filter(m=>m.isPres).length;
@@ -1594,6 +2209,7 @@ window.goEvent = function(code){
 };
 
 window.showEvent = function(code){
+  const DATA = (typeof getVisibleData === 'function') ? getVisibleData() : (window.DATA || []);
   currentEvent = code;
   document.querySelectorAll("#eventSelector .tab").forEach(b=>{
     b.classList.toggle("active", b.textContent.startsWith(code));
@@ -1698,6 +2314,7 @@ window.showEvent = function(code){
 // ========== RECORDS ==========
 let staffFilter = ""; // チップで選択中の担当者
 function renderRecords(){
+  const DATA = (typeof getVisibleData === 'function') ? getVisibleData() : (window.DATA || []);
   const fe = document.getElementById("filterEvent");
   fe.innerHTML = '<option value="">全イベント</option>' + Object.entries(EVENTS).sort((a,b)=>(a[1].date||"").localeCompare(b[1].date||"")).map(([k,v])=>`<option value="${k}">${v.name}</option>`).join("");
 
@@ -1726,6 +2343,7 @@ window.setStaffFilter = function(s){
   renderRecords();
 };
 function applyFilter(){
+  const DATA = (typeof getVisibleData === 'function') ? getVisibleData() : (window.DATA || []);
   const q = (document.getElementById("searchInput").value||"").toLowerCase();
   const ev = document.getElementById("filterEvent").value;
   const ap = document.getElementById("filterAppt").value;
