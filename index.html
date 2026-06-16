@@ -173,7 +173,10 @@ footer{margin-top:24px;padding:14px;font-size:11px;color:var(--muted);text-align
       <option>桜井</option><option>狩野</option><option>船越</option>
     </select>
     <label>権限</label>
-    <select id="loginRole"><option value="staff">一般スタッフ</option><option value="admin">管理者（山北/豊泉）</option></select>
+    <select id="loginRole">
+      <option value="admin" selected>管理者（全員のデータが見える）</option>
+      <option value="staff">一般スタッフ（自分の名刺のみ会社名閲覧可）</option>
+    </select>
     <button onclick="login()">ログイン</button>
     <div class="sub" style="margin-top:14px;font-size:11px;text-align:center">※プロトタイプ：認証は形式のみ。実装時はAuth0等に差し替え</div>
   </div>
