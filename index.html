@@ -164,21 +164,15 @@ footer{margin-top:24px;padding:14px;font-size:11px;color:var(--muted);text-align
 <div class="login-screen" id="loginScreen">
   <div class="login-box">
     <h1>🎪 エキスポDB</h1>
-    <div class="sub">v1.0 / ログインしてください</div>
-    <label>担当者名</label>
-    <select id="loginStaff">
-      <option>柴田</option><option>三五</option><option>鈴木H</option><option>誠英</option>
-      <option>森本</option><option>加藤</option><option>大橋</option><option>増田</option>
-      <option>福井</option><option>豊泉</option><option>小栗</option><option>森</option>
-      <option>桜井</option><option>狩野</option><option>船越</option>
-    </select>
-    <label>権限</label>
-    <select id="loginRole">
-      <option value="admin" selected>管理者（全員のデータが見える）</option>
-      <option value="staff">一般スタッフ（自分の名刺のみ会社名閲覧可）</option>
-    </select>
+    <div class="sub">社内メールアドレスでログイン</div>
+    <label>メールアドレス</label>
+    <input id="loginEmail" type="email" placeholder="yourname@bridge-one.co.jp" autocomplete="email" onkeydown="if(event.key==='Enter') login()">
+    <div id="loginError" style="display:none;color:#9D174D;font-size:12px;margin-top:6px"></div>
     <button onclick="login()">ログイン</button>
-    <div class="sub" style="margin-top:14px;font-size:11px;text-align:center">※プロトタイプ：認証は形式のみ。実装時はAuth0等に差し替え</div>
+    <div class="sub" style="margin-top:14px;font-size:11px;text-align:center;line-height:1.6">
+      <b>@bridge-one.co.jp</b> のアカウントのみアクセス可能<br>
+      <span style="color:#9D174D">※プロトタイプ：JS判定のため実運用ではAuth0等を併用</span>
+    </div>
   </div>
 </div>
 
@@ -527,10 +521,26 @@ let editingId = null;
 // =========================================================
 // LOGIN
 // =========================================================
+const ALLOWED_DOMAIN = "@bridge-one.co.jp";
 function login(){
-  const staff = document.getElementById("loginStaff").value;
-  const role = document.getElementById("loginRole").value;
-  USER = {staff,role,loginAt:new Date().toISOString()};
+  const emailEl = document.getElementById("loginEmail");
+  const errEl = document.getElementById("loginError");
+  const email = (emailEl.value || "").trim().toLowerCase();
+  errEl.style.display = "none";
+  if(!email){
+    errEl.textContent = "メールアドレスを入力してください";
+    errEl.style.display = "block"; return;
+  }
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
+    errEl.textContent = "メールアドレスの形式が正しくありません";
+    errEl.style.display = "block"; return;
+  }
+  if(!email.endsWith(ALLOWED_DOMAIN)){
+    errEl.textContent = `${ALLOWED_DOMAIN} のアカウントのみアクセス可能です`;
+    errEl.style.display = "block"; return;
+  }
+  const staff = email.split("@")[0];  // email prefix を担当者名として使う
+  USER = {email, staff, role:"admin", loginAt:new Date().toISOString()};
   localStorage.setItem(K_USER, JSON.stringify(USER));
   showApp();
 }
@@ -542,15 +552,23 @@ function logout(){
   document.getElementById("appBody").style.display="none";
 }
 function showApp(){
+  // 旧形式（emailなし）のセッションは無効化して再ログインさせる
+  if(!USER || !USER.email || !USER.email.endsWith(ALLOWED_DOMAIN)){
+    localStorage.removeItem(K_USER); USER = null;
+    document.getElementById("loginScreen").style.display="flex";
+    document.getElementById("topbar").style.display="none";
+    document.getElementById("appBody").style.display="none";
+    return;
+  }
   document.getElementById("loginScreen").style.display="none";
   document.getElementById("topbar").style.display="flex";
   document.getElementById("appBody").style.display="block";
-  document.getElementById("userName").textContent = USER.staff;
-  document.getElementById("userRole").textContent = USER.role==="admin"?"管理者":"一般";
-  document.getElementById("userRole").className = "role"+(USER.role==="admin"?" admin":"");
+  document.getElementById("userName").textContent = USER.email;
+  document.getElementById("userRole").textContent = "管理者";
+  document.getElementById("userRole").className = "role admin";
   // 管理タブは管理者のみ表示
   const adminTab = document.querySelector('[data-tab="admin"]');
-  adminTab.style.display = USER.role==="admin" ? "" : "none";
+  adminTab.style.display = "";
 
   // 🔥 初回ログイン時に自動でJapan BUILD 373件をロード
   if(DATA.length === 0 && typeof EMBEDDED_JAPAN_BUILD_CSV !== "undefined"){
