@@ -6,17 +6,25 @@
 -- 2. このファイル全体をコピペ
 -- 3. 右下 RUN ボタンクリック
 -- 4. テーブル2つ作成完了
+--
+-- ※ 既に古いスキーマで動かしてた場合も、このSQLを再実行するだけで
+-- 参加者カラムが追加されます（ALTER 文込み）
 -- =====================================================
 
 -- ===== events テーブル =====
 create table if not exists public.events (
-  code        text primary key,
-  name        text not null,
-  date        date,
-  cost        bigint default 0,
-  created_at  timestamptz default now(),
-  updated_at  timestamptz default now()
+  code         text primary key,
+  name         text not null,
+  date         date,
+  cost         bigint default 0,
+  participants jsonb default '[]'::jsonb,    -- 参加者リスト ["柴田","三五",...]
+  created_at   timestamptz default now(),
+  updated_at   timestamptz default now()
 );
+
+-- 既存テーブルに participants カラム追加（無ければ）
+alter table public.events
+  add column if not exists participants jsonb default '[]'::jsonb;
 
 -- ===== meishi（名刺レコード）テーブル =====
 create table if not exists public.meishi (

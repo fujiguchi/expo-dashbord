@@ -510,16 +510,21 @@ body.show-detail-cols .detail-col{display:table-cell}
 
 <!-- ============ Modal: 新規イベント追加 ============ -->
 <div class="modal-overlay" id="eventModal">
-  <div class="modal" style="max-width:540px">
+  <div class="modal" style="max-width:620px">
     <div class="modal-header">
       <h2>🎪 新規イベントを追加</h2>
       <button class="close" onclick="closeEventModal()">✕</button>
     </div>
     <div class="modal-body">
-      <div class="info-box">
-        新しいイベント開催が決まったら、ここで追加すれば<b>即時イベント別タブに登場</b>します。
-        当日からスタッフは「+ 名刺を登録」で入力開始できます。
+
+      <div class="form-row">
+        <label>📋 過去イベントから複製 <span class="hint">参加者・経費を引き継ぐ</span></label>
+        <select id="evm_clone" onchange="cloneFromEvent()">
+          <option value="">— ゼロから作る —</option>
+        </select>
       </div>
+
+      <hr style="border:none;border-top:1px solid var(--line);margin:14px 0">
 
       <div class="form-row">
         <label>イベント名 <span class="req">*</span></label>
@@ -532,6 +537,13 @@ body.show-detail-cols .detail-col{display:table-cell}
       <div class="form-row">
         <label>イベントコード <span class="hint">日付から自動生成・編集可</span></label>
         <input id="evm_code" type="text" placeholder="EV-2026-0701">
+      </div>
+      <div class="form-row">
+        <label>参加者 <span class="hint">カンマ区切り（後で編集可）</span></label>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <textarea id="evm_participants" placeholder="例：柴田, 三五, 鈴木H, 加藤" rows="2" style="resize:vertical"></textarea>
+          <div id="evm_staffSuggest" style="display:flex;flex-wrap:wrap;gap:4px;font-size:11px"></div>
+        </div>
       </div>
       <div class="form-row">
         <label>経費 <span class="hint">¥（後で編集可）</span></label>
@@ -729,7 +741,7 @@ async function fetchAllFromSupabase(){
     if(e1||e2){ console.error(e1||e2); SYNC_STATE="error"; return null; }
     SYNC_STATE = "synced";
     const evMap = {};
-    (events||[]).forEach(e=>{ evMap[e.code] = {name:e.name, date:e.date, cost:Number(e.cost)||0}; });
+    (events||[]).forEach(e=>{ evMap[e.code] = {name:e.name, date:e.date, cost:Number(e.cost)||0, participants: Array.isArray(e.participants)?e.participants:(e.participants?String(e.participants).split(/[,、\s]+/).filter(Boolean):[])}; });
     return {data: meishi||[], events: evMap};
   }catch(err){ console.error(err); SYNC_STATE="error"; return null; }
 }
@@ -746,7 +758,7 @@ async function deleteMeishi(id){
 }
 async function upsertEvent(code, ev){
   if(!SUPA) return;
-  const {error} = await SUPA.from("events").upsert([{code, name:ev.name, date:ev.date, cost:Number(ev.cost)||0}],{onConflict:"code"});
+  const {error} = await SUPA.from("events").upsert([{code, name:ev.name, date:ev.date, cost:Number(ev.cost)||0, participants:ev.participants||[]}],{onConflict:"code"});
   if(error) console.error("upsert event:", error);
 }
 async function deleteEventRemote(code){
@@ -769,7 +781,7 @@ function saveData(d){
 function saveEvents(e){
   saveEventsLocal(e);
   if(SUPA){
-    const rows = Object.entries(e).map(([code,ev])=>({code, name:ev.name, date:ev.date, cost:Number(ev.cost)||0}));
+    const rows = Object.entries(e).map(([code,ev])=>({code, name:ev.name, date:ev.date, cost:Number(ev.cost)||0, participants:ev.participants||[]}));
     SUPA.from("events").upsert(rows,{onConflict:"code"}).then(({error})=>{
       if(error){ console.error(error); SYNC_STATE="error"; }
       else { SYNC_STATE="synced"; }
@@ -1291,7 +1303,7 @@ async function pushAllToRemote(){
   if(!SUPA){ showToast("Supabase未接続","err"); return; }
   if(!confirm(`ローカルの ${DATA.length}件 + ${Object.keys(EVENTS).length}イベント をクラウドに送信します。よろしいですか？`)) return;
   SYNC_STATE="syncing"; updateSyncBadge();
-  const evRows = Object.entries(EVENTS).map(([code,ev])=>({code, name:ev.name, date:ev.date, cost:Number(ev.cost)||0}));
+  const evRows = Object.entries(EVENTS).map(([code,ev])=>({code, name:ev.name, date:ev.date, cost:Number(ev.cost)||0, participants:ev.participants||[]}));
   const r1 = await SUPA.from("events").upsert(evRows,{onConflict:"code"});
   const r2 = await SUPA.from("meishi").upsert(DATA,{onConflict:"id"});
   if(r1.error||r2.error){
@@ -1588,9 +1600,27 @@ window.showEvent = function(code){
   });
   const ev = EVENTS[code]; if(!ev) return;
   const rows = DATA.filter(m=>m.event===code);
-  document.getElementById("eventTitle").textContent = `${code}　${ev.name}`;
-  const staffs = [...new Set(rows.map(m=>m.staff))];
-  document.getElementById("eventMeta").textContent = `開催日：${ev.date} ／ 出務 ${staffs.length}名（${staffs.join(" / ")}）`;
+  document.getElementById("eventTitle").innerHTML = `${code}　${ev.name}　<button class="btn secondary sm" style="margin-left:8px;padding:2px 8px;font-size:10px" onclick="editEvent('${code}')">✏ 編集</button>`;
+  const actualStaffs = [...new Set(rows.map(m=>m.staff).filter(Boolean))];
+  const planned = ev.participants || [];
+  const plannedSet = new Set(planned);
+  const actualSet = new Set(actualStaffs);
+  const noShow = planned.filter(s=>!actualSet.has(s));
+  const surprise = actualStaffs.filter(s=>!plannedSet.has(s));
+
+  let meta = `開催日：${ev.date}`;
+  if(planned.length){
+    meta += `<br>📋 <b>参加予定 ${planned.length}名</b>: `;
+    meta += planned.map(s=>{
+      const present = actualSet.has(s);
+      return `<span class="chip ${present?'ok':''}" style="font-size:11px;${present?'':'opacity:.5'}">${s}${present?' ✓':''}</span>`;
+    }).join(" ");
+    if(noShow.length) meta += `　<span style="color:var(--warn)">⚠ 未入力 ${noShow.length}名</span>`;
+    if(surprise.length) meta += `<br><span style="color:var(--muted)">➕ 予定外: ${surprise.map(s=>`<span class="chip">${s}</span>`).join(" ")}</span>`;
+  } else {
+    meta += ` ／ 出務 ${actualStaffs.length}名（${actualStaffs.join(" / ") || "未入力"}）`;
+  }
+  document.getElementById("eventMeta").innerHTML = meta;
 
   const pres = rows.filter(m=>m.isPres).length;
   const appt = rows.filter(m=>m.appt==="◯").length;
@@ -1767,31 +1797,104 @@ function addEvent(){
 }
 
 // ===== 新規イベント追加モーダル =====
+function getAllKnownStaff(){
+  // 全イベントの参加者 + 名刺レコードの担当者 を統合
+  const set = new Set();
+  Object.values(EVENTS).forEach(ev=>{
+    (ev.participants||[]).forEach(s=>{ if(s) set.add(s); });
+  });
+  DATA.forEach(m=>{ if(m.staff) set.add(m.staff); });
+  return [...set].sort();
+}
+
 window.openEventModal = function(){
   const m = document.getElementById("eventModal");
   if(!m) return;
-  // 日付デフォルトは今日
   const today = new Date().toISOString().slice(0,10);
   document.getElementById("evm_name").value = "";
   document.getElementById("evm_date").value = today;
   document.getElementById("evm_code").value = "EV-" + today.slice(0,4) + "-" + today.slice(5,7) + today.slice(8,10);
+  document.getElementById("evm_participants").value = "";
   document.getElementById("evm_cost").value = 0;
   document.getElementById("evmHint").style.display = "none";
+  document.getElementById("evm_clone").value = "";
+
+  // 複製ソース選択肢を作成（日付降順）
+  const sel = document.getElementById("evm_clone");
+  const opts = Object.entries(EVENTS).sort((a,b)=>(b[1].date||"").localeCompare(a[1].date||""));
+  sel.innerHTML = '<option value="">— ゼロから作る —</option>' +
+    opts.map(([code,ev])=>`<option value="${code}">${ev.name}（${ev.date||""}）</option>`).join("");
+
+  // スタッフ候補チップ（クリックで追加）
+  renderStaffSuggest();
 
   // 日付変更で自動コード生成
   document.getElementById("evm_date").oninput = (e)=>{
     const d = e.target.value;
     if(d){
-      const auto = "EV-" + d.slice(0,4) + "-" + d.slice(5,7) + d.slice(8,10);
-      document.getElementById("evm_code").value = auto;
+      document.getElementById("evm_code").value = "EV-" + d.slice(0,4) + "-" + d.slice(5,7) + d.slice(8,10);
       checkCodeConflict();
     }
   };
   document.getElementById("evm_code").oninput = checkCodeConflict;
+  document.getElementById("evm_participants").oninput = renderStaffSuggest;
 
   m.classList.add("show");
   setTimeout(()=>document.getElementById("evm_name").focus(), 50);
 };
+
+function renderStaffSuggest(){
+  const el = document.getElementById("evm_staffSuggest");
+  if(!el) return;
+  const ta = document.getElementById("evm_participants");
+  const current = (ta.value||"").split(/[,、，\s]+/).map(s=>s.trim()).filter(Boolean);
+  const known = getAllKnownStaff().filter(s=>!current.includes(s));
+  if(!known.length){ el.innerHTML = ""; return; }
+  el.innerHTML = '<span style="color:var(--muted);margin-right:4px">候補（クリックで追加）:</span>' +
+    known.slice(0,30).map(s=>`<button type="button" class="staff-chip" style="padding:2px 8px;font-size:11px" onclick="addParticipant('${s.replace(/'/g,"\\'")}')">${s}</button>`).join("");
+}
+window.addParticipant = function(name){
+  const ta = document.getElementById("evm_participants");
+  const cur = (ta.value||"").trim();
+  ta.value = cur ? (cur.replace(/[,、]\s*$/,"") + ", " + name) : name;
+  renderStaffSuggest();
+};
+
+window.cloneFromEvent = function(){
+  const sel = document.getElementById("evm_clone");
+  const code = sel.value;
+  if(!code || !EVENTS[code]) return;
+  const src = EVENTS[code];
+  // 参加者：マスタにあれば使う、なければレコードから推定
+  let participants = src.participants && src.participants.length ? src.participants : [...new Set(DATA.filter(m=>m.event===code).map(m=>m.staff).filter(Boolean))];
+  document.getElementById("evm_participants").value = participants.join(", ");
+  document.getElementById("evm_cost").value = Number(src.cost)||0;
+  // 名前はそのまま（年だけ書き換える運用想定）→ ヒント
+  if(!document.getElementById("evm_name").value){
+    document.getElementById("evm_name").value = src.name + " "; // hint
+    setTimeout(()=>document.getElementById("evm_name").focus(),50);
+  }
+  renderStaffSuggest();
+  showToast(`✓ ${src.name} の設定を複製（参加者${participants.length}名・経費¥${(Number(src.cost)||0).toLocaleString()}）`);
+};
+
+window.editEvent = function(code){
+  const ev = EVENTS[code];
+  if(!ev) return;
+  openEventModal();
+  setTimeout(()=>{
+    document.getElementById("evm_code").value = code;
+    document.getElementById("evm_name").value = ev.name||"";
+    document.getElementById("evm_date").value = ev.date||"";
+    document.getElementById("evm_cost").value = Number(ev.cost)||0;
+    const ppl = ev.participants && ev.participants.length ? ev.participants :
+      [...new Set(DATA.filter(m=>m.event===code).map(m=>m.staff).filter(Boolean))];
+    document.getElementById("evm_participants").value = ppl.join(", ");
+    renderStaffSuggest();
+    checkCodeConflict();
+  }, 80);
+};
+
 function checkCodeConflict(){
   const code = document.getElementById("evm_code").value.trim();
   document.getElementById("evmHint").style.display = (code && EVENTS[code]) ? "block" : "none";
@@ -1804,13 +1907,15 @@ window.submitEventModal = function(){
   const date = document.getElementById("evm_date").value;
   const code = document.getElementById("evm_code").value.trim();
   const cost = Number(document.getElementById("evm_cost").value)||0;
+  const participants = (document.getElementById("evm_participants").value||"")
+    .split(/[,、，\s]+/).map(s=>s.trim()).filter(Boolean);
   if(!name){ showToast("イベント名を入力","err"); return; }
   if(!date){ showToast("開催日を入力","err"); return; }
   if(!/^EV-\d{4}-\d{4}$/.test(code)){ showToast("コード形式 EV-YYYY-MMDD","err"); return; }
-  EVENTS[code] = {name,date,cost};
+  EVENTS[code] = {name,date,cost,participants};
   saveEvents(EVENTS);
   closeEventModal();
-  showToast(`✓ ${name} を追加しました`);
+  showToast(`✓ ${name} を追加（参加者${participants.length}名）`);
   renderAll();
   // 追加したイベントを即時表示
   setTimeout(()=>{
