@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>エキスポDB v1.0</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
 <style>
 :root{
   /* Modern slate-based palette */
@@ -517,8 +518,22 @@ body.show-detail-cols .detail-col{display:table-cell}
       </div>
 
       <div class="form-row">
-        <label>📷 名刺撮影 <span class="hint">OCRで自動入力（モック）</span></label>
-        <div class="photo-stub" onclick="mockOCR()">📷 タップして撮影</div>
+        <label>📷 名刺撮影 <span class="hint">OCRで自動入力（日本語対応）</span></label>
+        <div>
+          <div class="photo-stub" onclick="document.getElementById('ocrFile').click()">
+            <div style="font-size:24px;line-height:1">📷</div>
+            <div style="margin-top:6px"><b>タップしてカメラ起動 / 画像選択</b></div>
+            <small>会社名・氏名・役職・電話などを自動抽出</small>
+          </div>
+          <input type="file" id="ocrFile" accept="image/*" capture="environment" style="display:none">
+          <div id="ocrProgress" style="display:none;margin-top:8px;padding:10px 14px;background:var(--primary-100);color:var(--primary);border-radius:9px;font-size:12px">
+            <div id="ocrProgressText">📷 OCR処理中... 0%</div>
+            <div style="background:var(--primary-50);height:6px;border-radius:3px;margin-top:6px;overflow:hidden">
+              <div id="ocrProgressBar" style="height:100%;width:0%;background:var(--primary);transition:width .2s"></div>
+            </div>
+          </div>
+          <div id="ocrResult" style="display:none;margin-top:8px;padding:10px;background:var(--bg-2);border-radius:8px;font-size:11px;color:var(--muted);max-height:120px;overflow-y:auto;line-height:1.5"></div>
+        </div>
       </div>
 
       <div class="form-row">
@@ -943,6 +958,124 @@ function pickChip(el,key){
   formState[key]=el.dataset.val;
 }
 function incCounter(d){ const el=document.getElementById("f_counter"); el.value=Math.max(0,(Number(el.value)||0)+d); }
+// ========== OCR (Tesseract.js, browser-only) ==========
+document.addEventListener("DOMContentLoaded", ()=>{
+  const fileInput = document.getElementById("ocrFile");
+  if(fileInput) fileInput.addEventListener("change", e=>{
+    const f = e.target.files[0];
+    if(f) runOCR(f);
+    e.target.value = "";
+  });
+});
+
+async function runOCR(file){
+  const progEl = document.getElementById("ocrProgress");
+  const progText = document.getElementById("ocrProgressText");
+  const progBar = document.getElementById("ocrProgressBar");
+  const resultEl = document.getElementById("ocrResult");
+  if(typeof Tesseract === "undefined"){
+    showToast("OCRエンジン未ロード（ネット接続確認）","err"); return;
+  }
+  progEl.style.display = "block";
+  resultEl.style.display = "none";
+  progText.textContent = "📷 OCR準備中... 0%";
+  progBar.style.width = "0%";
+  try{
+    const result = await Tesseract.recognize(file, "jpn+eng", {
+      logger: m => {
+        if(m.status === "recognizing text"){
+          const pct = Math.round(m.progress * 100);
+          progText.textContent = `📷 文字認識中... ${pct}%`;
+          progBar.style.width = pct + "%";
+        } else if(m.status){
+          progText.textContent = `📷 ${m.status}...`;
+        }
+      }
+    });
+    const text = (result.data && result.data.text) || "";
+    parseAndFillBizCard(text);
+    resultEl.style.display = "block";
+    resultEl.innerHTML = "<b>📄 OCR抽出テキスト：</b><br>" + text.replace(/\n/g,"<br>");
+    progEl.style.display = "none";
+    showToast("✓ OCR完了。内容を確認してください");
+  }catch(err){
+    console.error(err);
+    progEl.style.display = "none";
+    showToast("OCR失敗: "+err.message,"err");
+  }
+}
+
+function parseAndFillBizCard(text){
+  const lines = text.split(/[\r\n]+/).map(l=>l.trim()).filter(Boolean);
+
+  // 会社名（株式会社/㈱/(株)/有限会社 を含む行を最優先）
+  let company = "";
+  for(const l of lines){
+    if(/(株式会社|有限会社|合同会社|\(株\)|\(有\)|㈱|㈲|社団法人|財団法人|医療法人|学校法人|宗教法人)/.test(l)){
+      company = l; break;
+    }
+  }
+  // 会社名が見つからなければ、最も「会社っぽい」行を推測（カタカナ+漢字長め）
+  if(!company){
+    for(const l of lines){
+      if(l.length>=3 && l.length<=30 && /[ァ-ヴー]|[一-龥]/.test(l) && !/\d{2,}/.test(l) && !/@/.test(l)){
+        company = l; break;
+      }
+    }
+  }
+
+  // 役職（よくある役職キーワードを含む行）
+  let title = "";
+  const titlePatterns = /(代表取締役|代表社員|代表者|代表|取締役|執行役員|専務|常務|本部長|事業部長|部長|次長|課長|係長|主任|主査|マネージャー|マネジャー|チーフ|リーダー|担当|営業|エンジニア|デザイナー|ディレクター|プロデューサー|プランナー|アドバイザー|コンサルタント|顧問|相談役|社長|会長|CEO|CFO|COO|CTO|代理)/;
+  for(const l of lines){
+    if(titlePatterns.test(l) && l.length<25 && !/(株式会社|有限会社|㈱)/.test(l)){
+      title = l; break;
+    }
+  }
+
+  // 氏名（漢字2-4 + スペース + 漢字1-4、もしくは漢字3-5連続）
+  let person = "";
+  for(const l of lines){
+    const m = l.match(/^([一-龥]{1,4})[ 　]+([一-龥ぁ-ゔァ-ヴー]{1,4})$/);
+    if(m){ person = m[1] + " " + m[2]; break; }
+  }
+  if(!person){
+    for(const l of lines){
+      if(/^[一-龥]{2,5}$/.test(l) && l !== company && l !== title){ person = l; break; }
+    }
+  }
+
+  // 都道府県（漢字+都/道/府/県）
+  let pref = "";
+  for(const l of lines){
+    const m = l.match(/(北海道|東京都|京都府|大阪府|[一-龥]{2,3}県)/);
+    if(m){ pref = m[1].replace(/(都|府|県|道)$/, ""); break; }
+  }
+  // マップ正規化
+  const prefMap = {"北海":"北海道","東京":"東京","京都":"京都","大阪":"大阪","神奈":"神奈川","和歌":"和歌山","鹿児":"鹿児島"};
+  if(pref && prefMap[pref]) pref = prefMap[pref];
+
+  // フィールドに反映（既存値があれば上書きしない）
+  const set = (id, val) => {
+    if(!val) return;
+    const el = document.getElementById(id);
+    if(el && !el.value) el.value = val;
+  };
+  set("f_company", company);
+  set("f_title", title);
+  set("f_person", person);
+  // 都道府県 select は完全一致で
+  if(pref){
+    const sel = document.getElementById("f_pref");
+    if(sel && !sel.value){
+      for(const opt of sel.options){
+        if(opt.value === pref || opt.value.startsWith(pref)){ sel.value = opt.value; break; }
+      }
+    }
+  }
+  if(company) checkDup();
+}
+
 function mockOCR(){
   document.getElementById("f_company").value="株式会社○○建設";
   document.getElementById("f_title").value="取締役";
