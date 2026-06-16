@@ -308,6 +308,7 @@ body.show-detail-cols .detail-col{display:table-cell}
 <div class="topbar" id="topbar" style="display:none">
   <div class="brand">🎪 エキスポDB <span class="badge">v1.0</span></div>
   <button class="btn primary sm" onclick="openForm()">＋ 名刺を登録</button>
+  <a class="btn secondary sm" href="https://beavers.cybozu.com/k/690/" target="_blank" rel="noopener" style="text-decoration:none;display:inline-flex;align-items:center;gap:4px" title="kintone 営業アプリを開く">🔗 kintone</a>
   <span id="syncBadge" class="sync-badge local" title="DB同期状態">💾 ローカル</span>
   <div class="user">
     <span id="userName">柴田</span><span class="role" id="userRole">一般</span>
@@ -2420,7 +2421,7 @@ function applyFilter(){
     return `<tr>
       <td><span class="chip" style="font-size:10px">${evShort}</span></td>
       ${showStaffCol?`<td>${r.staff||""}</td>`:""}
-      <td><b>${maskCompany(r.company,r)}</b></td>
+      <td><b>${maskCompany(r.company,r)}</b>${(USER.role==="admin"||r.staff===USER.staff)&&r.company?` <a href="https://beavers.cybozu.com/k/690/?q=${encodeURIComponent('会社名 like "'+r.company+'"')}" target="_blank" rel="noopener" title="kintoneで「${r.company}」を検索" style="margin-left:4px;text-decoration:none;font-size:11px">🔗</a>`:""}</td>
       <td style="color:var(--text-2);max-width:200px;overflow:hidden;text-overflow:ellipsis">${titlePerson||"—"}</td>
       <td><span class="chip ${r.appt==="◯"?"ok":r.appt==="×"?"ng":"warn"}">${r.appt||"-"}</span></td>
       <td class="pres-cell">${r.isPres?"👑":""}</td>
