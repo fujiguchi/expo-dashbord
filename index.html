@@ -2403,12 +2403,51 @@ window.showPersonal = function(staff){
 let currentEvent = null;
 function renderEventSelector(){
   const sel = document.getElementById("eventSelector");
-  sel.innerHTML = Object.entries(EVENTS).map(([code,ev])=>
-    `<button class="tab" style="flex:none;min-width:auto" onclick="showEvent('${code}')">${code} ${ev.name}</button>`
-  ).join("") || '<div class="sub">イベントがありません。「管理 / 移行」タブで追加してください</div>';
-  if(currentEvent && EVENTS[currentEvent]) showEvent(currentEvent);
-  else if(Object.keys(EVENTS).length) showEvent(Object.keys(EVENTS)[0]);
+  // 日付順（新しい順）でソート
+  const entries = Object.entries(EVENTS).sort((a,b)=>(b[1].date||"").localeCompare(a[1].date||""));
+  if(!entries.length){
+    sel.innerHTML = '<div class="sub">イベントがありません。右上の「+新規イベントを追加」ボタンから作成してください</div>';
+    return;
+  }
+  // 縦リスト（カラム）形式：各行 = 1イベント
+  sel.style.display = "flex";
+  sel.style.flexDirection = "column";
+  sel.style.gap = "6px";
+  const cardCount = code => DATA.filter(m=>m.event===code).length;
+  const isValid = code => /^EV-\d{4}-\d{4}$/.test(code);
+  sel.innerHTML = entries.map(([code,ev])=>{
+    const cnt = cardCount(code);
+    const validClass = isValid(code) ? "" : "invalid-event";
+    const showCode = isValid(code) ? `<span style="font-family:ui-monospace,Consolas,monospace;color:var(--muted);font-size:11px;margin-right:8px">${code}</span>` : `<span style="color:#9D174D;font-size:11px;margin-right:8px">⚠ 無効コード</span>`;
+    return `<div class="event-row ${validClass}" data-code="${code}" style="display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid var(--line);border-radius:10px;background:#fff;cursor:pointer;transition:all .15s" onclick="showEvent('${code.replace(/'/g,"\\'")}')">
+      ${showCode}
+      <span style="flex:1;font-weight:600;color:var(--text)">${ev.name||"(名称未設定)"}</span>
+      <span style="color:var(--muted);font-size:11px">${ev.date||""}</span>
+      <span class="chip" style="font-size:11px">${cnt}件</span>
+      <button class="btn sm danger" style="padding:3px 8px;font-size:10px" onclick="event.stopPropagation();deleteEventConfirm('${code.replace(/'/g,"\\'")}')" title="このイベントを削除">🗑</button>
+    </div>`;
+  }).join("");
+  // 現在選択中をハイライト
+  if(currentEvent && EVENTS[currentEvent]){
+    const row = sel.querySelector(`.event-row[data-code="${currentEvent}"]`);
+    if(row){ row.style.background = "var(--primary-50)"; row.style.borderColor = "var(--primary)"; }
+    showEvent(currentEvent);
+  } else if(entries.length) {
+    showEvent(entries[0][0]);
+  }
 }
+
+window.deleteEventConfirm = function(code){
+  const ev = EVENTS[code]; if(!ev) return;
+  const cnt = DATA.filter(d=>d.event===code).length;
+  const msg = cnt>0 ? `「${ev.name||code}」とその${cnt}件の名刺レコードを削除します。よろしいですか？` : `「${ev.name||code}」を削除します。よろしいですか？`;
+  if(!confirm(msg)) return;
+  delete EVENTS[code]; saveEvents(EVENTS);
+  if(cnt>0){ DATA = DATA.filter(d=>d.event!==code); saveData(DATA); }
+  showToast(`✓ ${ev.name||code} を削除`);
+  currentEvent = null;
+  renderAll();
+};
 
 window.goEvent = function(code){
   document.querySelectorAll("#tabs .tab").forEach(b=>b.classList.remove("active"));
