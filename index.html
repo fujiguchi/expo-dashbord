@@ -438,10 +438,10 @@ body.show-detail-cols .detail-col{display:table-cell}
     <div class="panel">
       <h2>全名刺レコード</h2>
 
-      <!-- 担当者クイック選択（横スクロールチップ） -->
-      <div style="margin-bottom:12px">
-        <div style="font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.04em;text-transform:uppercase;margin-bottom:6px">担当者で絞り込み</div>
-        <div id="staffFilterChips" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+      <!-- 担当者フィルタ（プルダウン） -->
+      <div style="margin-bottom:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <label style="font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.04em;text-transform:uppercase">担当者で絞り込み</label>
+        <select id="staffFilterSelect" onchange="setStaffFilter(this.value)" style="flex:1;min-width:220px;max-width:360px;padding:8px 12px;border:1.5px solid var(--line-strong);border-radius:9px;font:inherit;font-size:13px;background:#fff;cursor:pointer"></select>
       </div>
 
       <div class="search-bar">
@@ -2578,15 +2578,15 @@ function renderRecords(){
   const fe = document.getElementById("filterEvent");
   fe.innerHTML = '<option value="">全イベント</option>' + Object.entries(EVENTS).sort((a,b)=>(a[1].date||"").localeCompare(b[1].date||"")).map(([k,v])=>`<option value="${k}">${v.name}</option>`).join("");
 
-  // 担当者チップ
+  // 担当者プルダウン
   const staffCounts = {};
   DATA.forEach(m=>{ const s=m.staff||"(未設定)"; staffCounts[s]=(staffCounts[s]||0)+1; });
   const staffSorted = Object.entries(staffCounts).sort((a,b)=>b[1]-a[1]);
-  const chipsEl = document.getElementById("staffFilterChips");
-  if(chipsEl){
-    chipsEl.innerHTML =
-      `<button class="staff-chip all ${staffFilter===""?"active":""}" onclick="setStaffFilter('')">全員 <span class="count">${DATA.length}</span></button>` +
-      staffSorted.map(([s,c])=>`<button class="staff-chip ${staffFilter===s?"active":""}" onclick="setStaffFilter('${s.replace(/'/g,"\\'")}')">${s} <span class="count">${c}</span></button>`).join("");
+  const selEl = document.getElementById("staffFilterSelect");
+  if(selEl){
+    selEl.innerHTML =
+      `<option value="" ${staffFilter===""?"selected":""}>全員（${DATA.length}件）</option>` +
+      staffSorted.map(([s,c])=>`<option value="${s}" ${staffFilter===s?"selected":""}>${s}（${c}件）</option>`).join("");
   }
 
   // 詳細列トグル
