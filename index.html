@@ -1551,9 +1551,15 @@ async function loginFromSession(session){
     return false;
   }
   const emailPrefix = email.split("@")[0];
+  const adminLabels = {
+    "fujiguchi@bridge-one.co.jp":"藤口（システム管理）",
+    "toyoizumi@bridge-one.co.jp":"豊泉",
+    "yamakita@bridge-one.co.jp":"山北",
+  };
+  const fallbackName = adminLabels[email] || emailPrefix;
   USER = {
     email, emailPrefix,
-    fullName: member ? member.name : emailPrefix,
+    fullName: member ? member.name : fallbackName,
     shortName: member ? member.shortName : emailPrefix,
     brand: member ? member.brand : "",
     dept: member ? member.dept : "",
@@ -1650,6 +1656,19 @@ function showApp(){
     USER.fullName = member.name; USER.shortName = member.shortName;
     USER.brand = member.brand; USER.dept = member.dept; USER.level = member.level;
     USER.staff = USER.shortName;
+    localStorage.setItem(K_USER, JSON.stringify(USER));
+  } else if(isAdmin(USER.email)){
+    // 管理者でマスタ未登録の場合、表示名のフォールバックを補完
+    if(!USER.fullName){
+      const adminLabels = {
+        "fujiguchi@bridge-one.co.jp":"藤口（システム管理）",
+        "toyoizumi@bridge-one.co.jp":"豊泉",
+        "yamakita@bridge-one.co.jp":"山北",
+      };
+      USER.fullName = adminLabels[USER.email] || USER.emailPrefix || USER.email.split("@")[0];
+    }
+    if(!USER.shortName) USER.shortName = (USER.emailPrefix || USER.email.split("@")[0]);
+    if(!USER.staff) USER.staff = USER.shortName;
     localStorage.setItem(K_USER, JSON.stringify(USER));
   } else if(!isAdmin(USER.email)){
     // マスタから消えてた → ログアウト
