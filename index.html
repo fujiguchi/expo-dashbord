@@ -744,17 +744,6 @@ body.show-detail-cols .detail-col{display:table-cell}
         </div>
       </div>
 
-      <div class="form-row">
-        <label>商談ステータス</label>
-        <div class="chips" id="stChips">
-          <button class="chip-btn" data-val="未対応" onclick="pickChip(this,'status')">未対応</button>
-          <button class="chip-btn" data-val="追客中" onclick="pickChip(this,'status')">追客中</button>
-          <button class="chip-btn" data-val="商談中" onclick="pickChip(this,'status')">商談中</button>
-          <button class="chip-btn" data-val="提案中" onclick="pickChip(this,'status')">提案中</button>
-          <button class="chip-btn" data-val="成約" onclick="pickChip(this,'status')">成約</button>
-          <button class="chip-btn" data-val="失注" onclick="pickChip(this,'status')">失注</button>
-        </div>
-      </div>
 
       <div class="form-row">
         <label>アポカウンター <span class="hint">テレアポで取れた商談</span></label>
@@ -763,11 +752,6 @@ body.show-detail-cols .detail-col{display:table-cell}
           <input id="f_counter" type="number" min="0" value="0" style="width:80px;text-align:center">
           <button type="button" class="chip-btn" onclick="incCounter(1)">＋</button>
         </div>
-      </div>
-
-      <div class="form-row">
-        <label>成約 / 売上額</label>
-        <div style="display:flex;align-items:center;gap:4px"><span>¥</span><input id="f_sales" type="number" placeholder="0" min="0"></div>
       </div>
 
       <div class="form-row">
@@ -781,6 +765,10 @@ body.show-detail-cols .detail-col{display:table-cell}
       </div>
 
       <div class="form-row"><label>備考</label><textarea id="f_memo" placeholder="話した内容・気づき"></textarea></div>
+
+      <div style="background:#EEF2FF;border-left:3px solid var(--primary);padding:10px 14px;border-radius:6px;margin-top:8px;font-size:12px;color:var(--muted)">
+        💡 <b>商談ステータス</b>と<b>成約 / 売上額</b>は kintone 690 から自動連携される予定のため、ここでは入力しません。
+      </div>
     </div>
     <div class="modal-footer" style="flex-direction:column;align-items:stretch;gap:8px">
       <div id="sessionSaved" style="display:none;background:#DCFCE7;border:1px solid #86EFAC;border-radius:8px;padding:8px 12px;font-size:11.5px;color:#15803D;max-height:120px;overflow-y:auto">
@@ -1906,9 +1894,8 @@ function openForm(id){
     document.getElementById("f_isExec").checked = !!r.isExec;
     document.getElementById("f_isMember").checked = !!r.isMember;
     document.getElementById("f_counter").value = r.counter||0;
-    document.getElementById("f_sales").value = r.sales||"";
     document.getElementById("f_memo").value = r.memo||"";
-    setChip("appt",r.appt); setChip("pos",r.pos); setChip("svc",r.service); setChip("status", r.status||"未対応");
+    setChip("appt",r.appt); setChip("pos",r.pos); setChip("svc",r.service);
   } else {
     clearFormFields();
   }
@@ -1927,7 +1914,7 @@ function closeForm(){
   const wrap = document.getElementById("sessionSaved"); if(wrap) wrap.style.display="none";
 }
 function clearFormFields(){
-  ["f_company","f_title","f_person","f_memo","f_sales"].forEach(id=>document.getElementById(id).value="");
+  ["f_company","f_title","f_person","f_memo"].forEach(id=>document.getElementById(id).value="");
   document.getElementById("f_pref").value="";
   document.getElementById("f_counter").value="0";
   document.getElementById("f_isPres").checked=false;
@@ -1936,7 +1923,7 @@ function clearFormFields(){
   const now=new Date();
   document.getElementById("f_date").value=now.toISOString().slice(0,10);
   document.getElementById("f_time").value=now.toTimeString().slice(0,5);
-  setChip("appt",""); setChip("pos",""); setChip("svc",""); setChip("status","未対応");
+  setChip("appt",""); setChip("pos",""); setChip("svc","");
   document.getElementById("dupAlert").classList.remove("show");
 }
 function pickChip(el,key){
@@ -2109,12 +2096,19 @@ function saveForm(){
     isExec:document.getElementById("f_isExec").checked?1:0,
     isMember:document.getElementById("f_isMember").checked?1:0,
     counter:Number(document.getElementById("f_counter").value)||0,
-    sales:Number(document.getElementById("f_sales").value)||0,
     service:formState.svc, memo:document.getElementById("f_memo").value,
-    status: formState.status || "未対応",
     owner_email: USER.email || null,
     updatedAt:new Date().toISOString(),
   };
+  // ステータスと成約額は kintone 側を正とするため、編集時は既存値を保持・新規時はデフォルト
+  if(editingId){
+    const prev = DATA.find(d=>d.id===editingId);
+    rec.status = (prev && prev.status) || "未対応";
+    rec.sales  = (prev && prev.sales) || 0;
+  } else {
+    rec.status = "未対応";
+    rec.sales  = 0;
+  }
   if(editingId){
     DATA = DATA.map(d=>d.id===editingId?rec:d);
     saveData(DATA); renderAll();
@@ -2141,14 +2135,13 @@ function saveForm(){
 }
 function clearFormFieldsForNext(){
   // 会社・役職・氏名・備考・成約 はクリア、ほかは継続
-  ["f_company","f_title","f_person","f_memo","f_sales"].forEach(id=>document.getElementById(id).value="");
+  ["f_company","f_title","f_person","f_memo"].forEach(id=>document.getElementById(id).value="");
   document.getElementById("f_pref").value="";
   document.getElementById("f_counter").value="0";
   document.getElementById("f_isPres").checked=false;
   document.getElementById("f_isExec").checked=false;
   document.getElementById("f_isMember").checked=true;
   setChip("appt","");
-  setChip("status","未対応");
   // pos と svc は保持（同じブースで連続登録するケースが多いため）
   document.getElementById("dupAlert").classList.remove("show");
 }
@@ -2833,14 +2826,10 @@ window.setStaffFilter = function(s){
 const STATUS_OPTIONS = ["未対応","追客中","商談中","提案中","成約","失注"];
 const STATUS_CLASS = {"未対応":"st-todo","追客中":"st-chase","商談中":"st-talk","提案中":"st-prop","成約":"st-won","失注":"st-lost"};
 function renderStatusCell(r, canEdit){
+  // ステータスは kintone 側を正とするため、ここでは読み取り専用表示のみ
   const cur = r.status || "未対応";
   const cls = STATUS_CLASS[cur] || "st-todo";
-  if(!canEdit){
-    return `<span class="chip ${cls}">${cur}</span>`;
-  }
-  return `<select class="status-select ${cls}" onchange="updateRecordStatus(${r.id}, this.value)">${
-    STATUS_OPTIONS.map(s=>`<option value="${s}"${s===cur?' selected':''}>${s}</option>`).join("")
-  }</select>`;
+  return `<span class="chip ${cls}" title="kintone から自動連携">${cur}</span>`;
 }
 function updateRecordStatus(id, status){
   const r = DATA.find(d=>d.id===id);
