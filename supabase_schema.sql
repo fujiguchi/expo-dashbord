@@ -35,6 +35,13 @@ alter table public.meishi
   add column if not exists status text default '未対応';
 create index if not exists idx_meishi_status on public.meishi(status);
 
+-- 所有者メール追加（Phase 2 前準備・後方互換）
+-- ※ このカラムだけ先に追加して当面は null 許容のまま運用。
+-- ※ RLS 本番化は別ファイル supabase_rls_phase2.sql で行う。
+alter table public.meishi
+  add column if not exists owner_email text;
+create index if not exists idx_meishi_owner_email on public.meishi(owner_email);
+
 -- ===== meishi（名刺レコード）テーブル =====
 create table if not exists public.meishi (
   id          bigint primary key,

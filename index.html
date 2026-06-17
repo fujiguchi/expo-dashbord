@@ -306,11 +306,21 @@ body.show-detail-cols .detail-col{display:table-cell}
 <div class="login-screen" id="loginScreen">
   <div class="login-box">
     <h1>🎪 エキスポDB</h1>
-    <div class="sub">社内メールアドレスでログイン</div>
+    <div class="sub">社内アカウントでログイン</div>
+
+    <button id="googleBtn" type="button" onclick="signInWithGoogle()" style="display:none;width:100%;background:#fff;color:#3c4043;border:1px solid #dadce0;border-radius:8px;padding:10px 14px;font-weight:600;font-size:14px;cursor:pointer;display:none;align-items:center;justify-content:center;gap:10px;margin-top:8px">
+      <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/></svg>
+      Googleでログイン
+    </button>
+    <div id="orDivider" style="display:none;text-align:center;color:var(--muted);font-size:11px;margin:14px 0;position:relative">
+      <span style="background:#fff;padding:0 10px;position:relative;z-index:1">または</span>
+      <div style="position:absolute;top:50%;left:0;right:0;border-top:1px solid var(--line);z-index:0"></div>
+    </div>
+
     <label>メールアドレス</label>
     <input id="loginEmail" type="email" placeholder="yourname@bridge-one.co.jp" autocomplete="email" onkeydown="if(event.key==='Enter') login()">
     <div id="loginError" style="display:none;color:#9D174D;font-size:12px;margin-top:6px"></div>
-    <button onclick="login()">ログイン</button>
+    <button onclick="login()">メールでログイン（旧）</button>
     <div class="sub" style="margin-top:14px;font-size:11px;text-align:center;line-height:1.6">
       <b>@bridge-one.co.jp</b> のアカウントのみアクセス可能<br>
       メンバーマスタ照合あり
@@ -1506,6 +1516,77 @@ let editingId = null;
 // =========================================================
 const ALLOWED_DOMAIN = "@bridge-one.co.jp";
 
+function showLoginError(msg){
+  const errEl = document.getElementById("loginError");
+  errEl.innerHTML = msg;
+  errEl.style.display = "block";
+}
+async function signInWithGoogle(){
+  if(!SUPA){
+    showLoginError("先に共有DB（Supabase）の接続を完了してください。<br>管理タブからURL+Keyを設定→このページに戻ってください。");
+    return;
+  }
+  const {error} = await SUPA.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: window.location.origin + window.location.pathname,
+      queryParams: { hd: 'bridge-one.co.jp' }
+    }
+  });
+  if(error) showLoginError("Googleログインに失敗: " + error.message);
+}
+async function loginFromSession(session){
+  if(!session || !session.user) return false;
+  const email = (session.user.email||"").toLowerCase();
+  if(!email.endsWith(ALLOWED_DOMAIN)){
+    await SUPA.auth.signOut();
+    showLoginError(`${ALLOWED_DOMAIN} 以外のアカウントは使えません`);
+    return false;
+  }
+  const isAdminUser = isAdmin(email);
+  const member = lookupMember(email);
+  if(!member && !isAdminUser){
+    await SUPA.auth.signOut();
+    showLoginError("このメールはメンバーマスタに登録されていません。管理者に連絡してください。");
+    return false;
+  }
+  const emailPrefix = email.split("@")[0];
+  USER = {
+    email, emailPrefix,
+    fullName: member ? member.name : emailPrefix,
+    shortName: member ? member.shortName : emailPrefix,
+    brand: member ? member.brand : "",
+    dept: member ? member.dept : "",
+    level: member ? member.level : "",
+    role: isAdminUser ? "admin" : "member",
+    staff: member ? member.shortName : emailPrefix,
+    authMode: "oauth",
+  };
+  localStorage.setItem(K_USER, JSON.stringify(USER));
+  showApp();
+  initDataLoad();
+  return true;
+}
+async function bootstrapAuth(){
+  // Supabase が初期化済みなら Google ボタンを出し、既存セッションがあれば自動ログイン
+  if(!SUPA){
+    document.getElementById("googleBtn").style.display = "none";
+    document.getElementById("orDivider").style.display = "none";
+    return;
+  }
+  document.getElementById("googleBtn").style.display = "flex";
+  document.getElementById("orDivider").style.display = "block";
+  try {
+    const {data:{session}} = await SUPA.auth.getSession();
+    if(session) await loginFromSession(session);
+  } catch(e){ console.warn("getSession error", e); }
+  // OAuth リダイレクト後のセッション確立を捕捉
+  SUPA.auth.onAuthStateChange(async (event, session)=>{
+    if(event === "SIGNED_IN" && session){
+      await loginFromSession(session);
+    }
+  });
+}
 function login(){
   const emailEl = document.getElementById("loginEmail");
   const errEl = document.getElementById("loginError");
@@ -1544,8 +1625,11 @@ function login(){
   localStorage.setItem(K_USER, JSON.stringify(USER));
   showApp();
 }
-function logout(){
+async function logout(){
   if(!confirm("ログアウトしますか？")) return;
+  if(SUPA && USER && USER.authMode === "oauth"){
+    try { await SUPA.auth.signOut(); } catch(e) { console.warn("supabase signOut", e); }
+  }
   localStorage.removeItem(K_USER); USER = null;
   document.getElementById("loginScreen").style.display="flex";
   document.getElementById("topbar").style.display="none";
@@ -1642,6 +1726,7 @@ function initDataLoad(){
       cleanupInvalidEvents();
       cleanupStaffAliases();
       normalizeStatus();
+      backfillOwnerEmailOnce();
       renderAll();
     });
   } else {
@@ -1651,6 +1736,7 @@ function initDataLoad(){
     cleanupInvalidEvents();
     cleanupStaffAliases();
     normalizeStatus();
+    backfillOwnerEmailOnce();
     renderAll();
   }
 }
@@ -1659,6 +1745,25 @@ function normalizeStatus(){
   let n = 0;
   DATA.forEach(r=>{ if(!r.status){ r.status = "未対応"; n++; } });
   if(n>0) saveData(DATA);
+}
+async function backfillOwnerEmailOnce(){
+  // OAuth ログイン後、staff === USER.shortName のレコードに自分の email を入れる（一度だけ）
+  if(!USER || !USER.email) return;
+  if(USER.authMode !== "oauth") return;
+  const flagKey = "meishi_app_v1_owner_backfilled_" + USER.email;
+  if(localStorage.getItem(flagKey)) return;
+  let changed = 0;
+  DATA.forEach(r=>{
+    if(!r.owner_email && r.staff && (r.staff === USER.shortName || r.staff === USER.fullName)){
+      r.owner_email = USER.email;
+      changed++;
+    }
+  });
+  if(changed > 0){
+    saveData(DATA);
+    setTimeout(()=>showToast(`✓ あなたの旧名刺 ${changed}件 に owner_email を補完`), 1200);
+  }
+  localStorage.setItem(flagKey, "done");
 }
 
 // 旧短縮名のエイリアスマップ（曖昧な略称→正式名へ統一）
@@ -1988,6 +2093,7 @@ function saveForm(){
     sales:Number(document.getElementById("f_sales").value)||0,
     service:formState.svc, memo:document.getElementById("f_memo").value,
     status: formState.status || "未対応",
+    owner_email: USER.email || null,
     updatedAt:new Date().toISOString(),
   };
   if(editingId){
@@ -2091,6 +2197,7 @@ function saveSupaConfig(){
   localStorage.setItem(K_SUPA, JSON.stringify({url, key}));
   if(initSupabase()){
     showToast("✓ Supabase接続を保存しました。同期します");
+    bootstrapAuth().catch(e=>console.warn(e));
     syncFromRemote().then(()=>renderAll());
   } else {
     showToast("接続失敗。URL/キー確認を","err");
@@ -5250,7 +5357,9 @@ if(dropZone){
 // =========================================================
 // BOOTSTRAP
 // =========================================================
-if(USER){ showApp(); } else { /* login screen visible */ }
+if(USER){ showApp(); }
+// Supabase Auth セッション / Googleボタンの初期化
+bootstrapAuth().catch(e=>console.warn("bootstrapAuth", e));
 </script>
 </body>
 </html>
