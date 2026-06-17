@@ -191,7 +191,7 @@ tfoot td{font-weight:700;background:#F1F4FA;border-top:2px solid var(--navy);col
 .chip.st-prop{background:#EDE9FE;color:#6D28D9}
 .chip.st-won{background:#DCFCE7;color:#15803D;font-weight:700}
 .chip.st-lost{background:#FEE2E2;color:#B91C1C}
-.status-select{font:inherit;font-size:11px;font-weight:600;padding:2px 6px;border-radius:999px;border:1px solid var(--line);background:#fff;cursor:pointer}
+.status-select{font:inherit;font-size:11px;font-weight:600;padding:2px 4px;border-radius:999px;border:1px solid var(--line);background:#fff;cursor:pointer;max-width:90px;appearance:none;-webkit-appearance:none;background-image:linear-gradient(45deg,transparent 50%,currentColor 50%),linear-gradient(135deg,currentColor 50%,transparent 50%);background-position:calc(100% - 10px) 50%,calc(100% - 6px) 50%;background-size:4px 4px,4px 4px;background-repeat:no-repeat;padding-right:18px}
 .status-select.st-todo{background:#F1F5F9;color:#475569}
 .status-select.st-chase{background:#FEF3C7;color:#92400E}
 .status-select.st-talk{background:#FFEDD5;color:#9A3412}
@@ -483,8 +483,7 @@ body.show-detail-cols .detail-col{display:table-cell}
           <th class="left">会社名</th>
           <th class="left">氏名／役職</th>
           <th class="left">アポ</th>
-          <th class="pres-cell-soft">社長</th>
-          <th class="pres-cell-soft" style="background:#F3E8FF">役員</th>
+          <th class="left">役職</th>
           <th class="left">ステータス</th>
           <th>成約</th>
           <th class="left detail-col">県</th>
@@ -2755,11 +2754,10 @@ function applyFilter(){
     return `<tr>
       <td><span class="chip" style="font-size:10px">${evShort}</span></td>
       ${showStaffCol?`<td>${r.staff||""}</td>`:""}
-      <td><b>${maskCompany(r.company,r)}</b>${(USER.role==="admin"||r.staff===USER.staff)&&r.company?` <a href="https://beavers.cybozu.com/k/690/?q=${encodeURIComponent('会社名 like "'+r.company+'"')}" target="_blank" rel="noopener" title="kintoneで「${r.company}」を検索" style="margin-left:4px;text-decoration:none;font-size:11px">🔗</a>`:""}</td>
+      <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><b title="${(r.company||'').replace(/"/g,'&quot;')}">${maskCompany(r.company,r)}</b>${(USER.role==="admin"||r.staff===USER.staff)&&r.company?` <a href="https://beavers.cybozu.com/k/690/?q=${encodeURIComponent('会社名 like "'+r.company+'"')}" target="_blank" rel="noopener" title="kintoneで「${r.company}」を検索" style="text-decoration:none;font-size:11px">🔗</a>`:""}</td>
       <td style="color:var(--text-2);max-width:200px;overflow:hidden;text-overflow:ellipsis">${titlePerson||"—"}</td>
       <td><span class="chip ${r.appt==="◯"?"ok":r.appt==="×"?"ng":"warn"}">${r.appt||"-"}</span></td>
-      <td class="pres-cell">${r.isPres?"👑":""}</td>
-      <td style="background:#F3E8FF;color:#7E22CE;font-weight:700">${r.isExec?"🎖":""}</td>
+      <td style="white-space:nowrap">${r.isPres?'<span title="社長">👑</span>':''}${r.isExec?'<span title="役員" style="margin-left:2px">🎖</span>':''}${(!r.isPres&&!r.isExec)?'<span style="color:var(--muted);font-size:11px">—</span>':''}</td>
       <td>${renderStatusCell(r, canEdit)}</td>
       <td>${fmtYen(r.sales)}</td>
       <td class="detail-col">${r.pref||""}</td>
