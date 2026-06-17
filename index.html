@@ -1327,9 +1327,11 @@ function canSeeRecord(rec){
   if(s === USER.fullName) return true;
   if(s === USER.shortName) return true;
   if(s === USER.emailPrefix) return true;
-  // 部分一致（古いデータの短縮姓に対応）
-  if(USER.fullName && USER.fullName.startsWith(s)) return true;
-  if(s.startsWith(USER.shortName)) return true;
+  // 部分一致は 2文字以下のみ（旧短縮姓の救済。3文字以上は完全一致を要求して他人混入を防ぐ）
+  if(s.length <= 2){
+    if(USER.fullName && USER.fullName.startsWith(s)) return true;
+    if(USER.shortName && USER.shortName.startsWith(s)) return true;
+  }
   return false;
 }
 function getVisibleData(){
@@ -1601,21 +1603,40 @@ function applyTabVisibility(){
 }
 
 function initDataLoad(){
-  // Supabase 接続中ならクラウドから最新を引いてくる
   updateSyncBadge();
   if(SUPA){
     syncFromRemote().then(()=>{
       if(DATA.length === 0 && typeof EMBEDDED_JAPAN_BUILD_CSV !== "undefined") autoLoadInitialData();
       cleanupInvalidEvents();
+      cleanupStaffAliases();
       renderAll();
     });
   } else {
-    // 🔥 LocalStorageモード：初回ログインで自動投入
     if(DATA.length === 0 && typeof EMBEDDED_JAPAN_BUILD_CSV !== "undefined"){
       autoLoadInitialData();
     }
     cleanupInvalidEvents();
+    cleanupStaffAliases();
     renderAll();
+  }
+}
+
+// 旧短縮名のエイリアスマップ（曖昧な略称→正式名へ統一）
+const STAFF_ALIASES = {
+  "鈴木H": "鈴木駿斗",
+  "加藤ひ": "加藤滉弥",
+};
+
+// 旧短縮名を正式名に統一（起動時クリーンアップ）
+function cleanupStaffAliases(){
+  let changed = 0;
+  DATA.forEach(r=>{
+    const a = STAFF_ALIASES[(r.staff||"").trim()];
+    if(a){ r.staff = a; changed++; }
+  });
+  if(changed > 0){
+    saveData(DATA);
+    setTimeout(()=>showToast(`✓ 旧短縮名 ${changed}件 を正式名に統一`), 700);
   }
 }
 
