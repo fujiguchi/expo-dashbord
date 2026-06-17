@@ -30,6 +30,11 @@ alter table public.events
 alter table public.meishi
   add column if not exists "isExec" smallint default 0;
 
+-- 商談ステータス追加（Phase 1）
+alter table public.meishi
+  add column if not exists status text default '未対応';
+create index if not exists idx_meishi_status on public.meishi(status);
+
 -- ===== meishi（名刺レコード）テーブル =====
 create table if not exists public.meishi (
   id          bigint primary key,
