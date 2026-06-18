@@ -718,15 +718,6 @@ body.show-detail-cols .detail-col{display:table-cell}
       </div>
 
       <div class="form-row">
-        <label>アポ状態 <span class="req">*</span></label>
-        <div class="chips" id="apptChips">
-          <button class="chip-btn ok" data-val="◯" onclick="pickChip(this,'appt')">◯ 取れた</button>
-          <button class="chip-btn ng" data-val="×" onclick="pickChip(this,'appt')">× ダメ</button>
-          <button class="chip-btn warn" data-val="追い中" onclick="pickChip(this,'appt')">追い中</button>
-        </div>
-      </div>
-
-      <div class="form-row">
         <label>ポジション</label>
         <div class="chips" id="posChips">
           <button class="chip-btn" data-val="ブース" onclick="pickChip(this,'pos')">ブース</button>
@@ -735,28 +726,8 @@ body.show-detail-cols .detail-col{display:table-cell}
         </div>
       </div>
 
-      <div class="form-row">
-        <label>役職フラグ</label>
-        <div class="check-row">
-          <label><input type="checkbox" id="f_isPres"> 👑 <b style="color:var(--pres)">社長</b></label>
-          <label><input type="checkbox" id="f_isExec"> 🎖 <b style="color:#9333EA">役員</b></label>
-          <label><input type="checkbox" id="f_isMember" checked> 担当</label>
-        </div>
-      </div>
-
-
-      <div class="form-row">
-        <label>アポカウンター <span class="hint">テレアポで取れた商談</span></label>
-        <div style="display:flex;align-items:center;gap:8px">
-          <button type="button" class="chip-btn" onclick="incCounter(-1)">−</button>
-          <input id="f_counter" type="number" min="0" value="0" style="width:80px;text-align:center">
-          <button type="button" class="chip-btn" onclick="incCounter(1)">＋</button>
-        </div>
-      </div>
-
-      <div class="form-row">
-        <label>サービス種別</label>
-        <div class="chips" id="svcChips">
+      <div style="display:none" id="apptChips"></div>
+      <div style="display:none" id="svcChips">
           <button class="chip-btn" data-val="HH" onclick="pickChip(this,'svc')">HH</button>
           <button class="chip-btn" data-val="HM" onclick="pickChip(this,'svc')">HM</button>
           <button class="chip-btn" data-val="KH" onclick="pickChip(this,'svc')">KH</button>
@@ -766,8 +737,9 @@ body.show-detail-cols .detail-col{display:table-cell}
 
       <div class="form-row"><label>備考</label><textarea id="f_memo" placeholder="話した内容・気づき"></textarea></div>
 
-      <div style="background:#EEF2FF;border-left:3px solid var(--primary);padding:10px 14px;border-radius:6px;margin-top:8px;font-size:12px;color:var(--muted)">
-        💡 <b>商談ステータス</b>と<b>成約 / 売上額</b>は kintone 690 から自動連携される予定のため、ここでは入力しません。
+      <div style="background:#EEF2FF;border-left:3px solid var(--primary);padding:10px 14px;border-radius:6px;margin-top:8px;font-size:12px;color:var(--muted);line-height:1.7">
+        💡 <b>アポ状態 / 役職フラグ（社長・役員）/ アポカウンター / サービス種別 / 商談ステータス / 成約額</b> は<br>
+        kintone 690 から自動連携される予定のため、ここでは入力しません。
       </div>
     </div>
     <div class="modal-footer" style="flex-direction:column;align-items:stretch;gap:8px">
@@ -1890,12 +1862,8 @@ function openForm(id){
     document.getElementById("f_person").value = r.person||"";
     document.getElementById("f_pref").value = r.pref||"";
     if(r.dt){ const [d,t] = r.dt.split(" "); document.getElementById("f_date").value=d; document.getElementById("f_time").value=t||""; }
-    document.getElementById("f_isPres").checked = !!r.isPres;
-    document.getElementById("f_isExec").checked = !!r.isExec;
-    document.getElementById("f_isMember").checked = !!r.isMember;
-    document.getElementById("f_counter").value = r.counter||0;
     document.getElementById("f_memo").value = r.memo||"";
-    setChip("appt",r.appt); setChip("pos",r.pos); setChip("svc",r.service);
+    setChip("pos",r.pos);
   } else {
     clearFormFields();
   }
@@ -1916,14 +1884,10 @@ function closeForm(){
 function clearFormFields(){
   ["f_company","f_title","f_person","f_memo"].forEach(id=>document.getElementById(id).value="");
   document.getElementById("f_pref").value="";
-  document.getElementById("f_counter").value="0";
-  document.getElementById("f_isPres").checked=false;
-  document.getElementById("f_isExec").checked=false;
-  document.getElementById("f_isMember").checked=true;
   const now=new Date();
   document.getElementById("f_date").value=now.toISOString().slice(0,10);
   document.getElementById("f_time").value=now.toTimeString().slice(0,5);
-  setChip("appt",""); setChip("pos",""); setChip("svc","");
+  setChip("pos","");
   document.getElementById("dupAlert").classList.remove("show");
 }
 function pickChip(el,key){
@@ -2083,7 +2047,6 @@ let sessionRecs = [];  // モーダルを開いてから登録した名刺の累
 function saveForm(){
   const company = document.getElementById("f_company").value.trim();
   if(!company){ showToast("会社名を入力してください","err"); return; }
-  if(!formState.appt){ showToast("アポ状態を選択してください","err"); return; }
   const rec = {
     id: editingId || Date.now()+Math.floor(Math.random()*1000),
     event: document.getElementById("f_event").value,
@@ -2091,23 +2054,32 @@ function saveForm(){
     company, title:document.getElementById("f_title").value,
     person:document.getElementById("f_person").value, pref:document.getElementById("f_pref").value,
     dt:document.getElementById("f_date").value+" "+document.getElementById("f_time").value,
-    appt:formState.appt, pos:formState.pos,
-    isPres:document.getElementById("f_isPres").checked?1:0,
-    isExec:document.getElementById("f_isExec").checked?1:0,
-    isMember:document.getElementById("f_isMember").checked?1:0,
-    counter:Number(document.getElementById("f_counter").value)||0,
-    service:formState.svc, memo:document.getElementById("f_memo").value,
+    pos:formState.pos,
+    memo:document.getElementById("f_memo").value,
     owner_email: USER.email || null,
     updatedAt:new Date().toISOString(),
   };
-  // ステータスと成約額は kintone 側を正とするため、編集時は既存値を保持・新規時はデフォルト
+  // appt / 役職フラグ / アポカウンター / サービス / status / sales は kintone 側を正とする
+  // 編集時は既存値を保持、新規時はデフォルト
   if(editingId){
-    const prev = DATA.find(d=>d.id===editingId);
-    rec.status = (prev && prev.status) || "未対応";
-    rec.sales  = (prev && prev.sales) || 0;
+    const prev = DATA.find(d=>d.id===editingId) || {};
+    rec.appt     = prev.appt     || "";
+    rec.isPres   = prev.isPres   || 0;
+    rec.isExec   = prev.isExec   || 0;
+    rec.isMember = prev.isMember != null ? prev.isMember : 1;
+    rec.counter  = prev.counter  || 0;
+    rec.service  = prev.service  || "";
+    rec.status   = prev.status   || "未対応";
+    rec.sales    = prev.sales    || 0;
   } else {
-    rec.status = "未対応";
-    rec.sales  = 0;
+    rec.appt     = "";
+    rec.isPres   = 0;
+    rec.isExec   = 0;
+    rec.isMember = 1;
+    rec.counter  = 0;
+    rec.service  = "";
+    rec.status   = "未対応";
+    rec.sales    = 0;
   }
   if(editingId){
     DATA = DATA.map(d=>d.id===editingId?rec:d);
@@ -2137,12 +2109,7 @@ function clearFormFieldsForNext(){
   // 会社・役職・氏名・備考・成約 はクリア、ほかは継続
   ["f_company","f_title","f_person","f_memo"].forEach(id=>document.getElementById(id).value="");
   document.getElementById("f_pref").value="";
-  document.getElementById("f_counter").value="0";
-  document.getElementById("f_isPres").checked=false;
-  document.getElementById("f_isExec").checked=false;
-  document.getElementById("f_isMember").checked=true;
-  setChip("appt","");
-  // pos と svc は保持（同じブースで連続登録するケースが多いため）
+  // pos は保持（同じブースで連続登録するケースが多いため）
   document.getElementById("dupAlert").classList.remove("show");
 }
 function updateSessionList(){
